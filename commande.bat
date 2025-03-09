@@ -1,4 +1,3 @@
 flex lexical.l
-bison -d syntaxique.y 
-gcc lex.yy.c syntaxique.tab.c -o projet.exe -lfl -ly
+gcc lex.yy.c -o projet -lfl
 projet.exe EXAMPLE.txt < EXAMPLE.txt
