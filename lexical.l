@@ -8,6 +8,7 @@
 	// extern char *file_name;
 	int nb_line;
 	int nb_character;
+	int precision;
 	char *file_name;
 	// extern YYSTYPE yylval;
 	char x[20];
@@ -22,7 +23,6 @@ character "\"".+"\""
 bool "TRUE"|"FALSE"
 commentaire "\/\/"[^;]+;
 %%
-
 boolean { 
 	ECHO;
 	nb_character += strlen(yytext);
@@ -163,13 +163,6 @@ return {
 	// yylval.str=strdup(yytext);
 	// return kwRETURN;
 }
-READ { 
-	ECHO;
-	nb_character += strlen(yytext);
-	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwREAD;
-}
 static {
 	ECHO; 
 	nb_character += strlen(yytext);
@@ -230,17 +223,29 @@ while {
 	// return bool;
 }
 {real} {
-	/* TODO: Verify float and double size*/
-	if (atof(yytext) >= -32768.32767 && atof(yytext) <= 32767.32767) {
-		ECHO;
-		nb_character += strlen(yytext);
+    precision = 0;
+    // Vérifier le nombre de chiffres après la virgule
+    if (strchr(yytext, '.') != NULL) {
+        precision = strlen(strchr(yytext, '.')) - 1;
+    }
+
+    if (atof(yytext) >= -3.4e38 && atof(yytext) <= 3.4e38 && precision <= 7) {
+        ECHO;
+        nb_character += strlen(yytext);
 		// rechercher(yytext,"Cst","REAL","/","/","/","/","/",0);
-		// yylval.str=strdup(yytext);
-		// return real;
-	}
-	else{
-		printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
-	}
+        // yylval.str = strdup(yytext);
+        // return FLOAT;
+    }
+    else if (atof(yytext) >= -1.7e308 && atof(yytext) <= 1.7e308 && precision <= 16) {
+        ECHO;
+        nb_character += strlen(yytext);
+		// rechercher(yytext,"Cst","REAL","/","/","/","/","/",0);
+        // yylval.str = strdup(yytext);
+        // return DOUBLE;
+    }
+    else {
+        printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
+    }
 }
 {integer} {	
 	if (atoi(yytext) >= -32768 && atoi(yytext) <= 32767) { 
@@ -255,7 +260,6 @@ while {
 	}	
 }
 {character} {
-	/* TODO: Ask about char and String types */
 	ECHO;
 	nb_character += strlen(yytext);
 	sprintf(x,"%d",strlen(yytext)-2);
