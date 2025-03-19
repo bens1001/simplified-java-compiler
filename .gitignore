@@ -1,0 +1,5 @@
+.vscode
+lex.yy.c
+syntaxique.tab.c
+syntaxique.tab.h
+projet.exe

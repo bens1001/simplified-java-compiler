@@ -1,18 +1,18 @@
 %{
-	// #include "syntaxique.tab.h"
+	#include "syntaxique.tab.h"
 	#include <stdio.h>
 	#include <stdlib.h>
 	#include <string.h>
-	// extern int nb_line;
-	// extern int nb_character;
-	// extern char *file_name;
+	extern int nb_line;
+	extern int nb_character;
+	extern char *file_name;
 	int nb_line;
 	int nb_character;
 	int precision;
 	char *file_name;
-	// extern YYSTYPE yylval;
+	extern YYSTYPE yylval;
 	char x[20];
-	// extern int emp;
+	extern int emp;
 %}
 letter [a-zA-Z]
 number [0-9]
@@ -27,190 +27,197 @@ boolean {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwBOOLEAN;
+	yylval.str=strdup(yytext);
+	return kwBOOLEAN;
 }
 break {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwBREAK;
+	yylval.str=strdup(yytext);
+	return kwBREAK;
 }
 case {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwCASE;
+	yylval.str=strdup(yytext);
+	return kwCASE;
 }
 catch {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwCATCH;
+	yylval.str=strdup(yytext);
+	return kwCATCH;
 }
 char {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwCHAR;
+	yylval.str=strdup(yytext);
+	return kwCHAR;
 }
 class { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwCLASS;
+	yylval.str=strdup(yytext);
+	return kwCLASS;
 }
 continue {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwCONTINUE;
+	yylval.str=strdup(yytext);
+	return kwCONTINUE;
 }
 default {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwDEFAULT;
+	yylval.str=strdup(yytext);
+	return kwDEFAULT;
 }
 do {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwDO;
+	yylval.str=strdup(yytext);
+	return kwDO;
 }
 double { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwDOUBLE;
+	yylval.str=strdup(yytext);
+	return kwDOUBLE;
 }
 else { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwELSE;
+	yylval.str=strdup(yytext);
+	return kwELSE;
 }
 final {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwFINAL;
+	yylval.str=strdup(yytext);
+	return kwFINAL;
 }
 finally {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwFINALLY;
+	yylval.str=strdup(yytext);
+	return kwFINALLY;
 }
 float { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwFLOAT;
+	yylval.str=strdup(yytext);
+	return kwFLOAT;
 }
 if { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwIF;
+	yylval.str=strdup(yytext);
+	return kwIF;
 }
 int {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwINT;
+	yylval.str=strdup(yytext);
+	return kwINT;
+}
+main {
+	ECHO;
+	nb_character += strlen(yytext);
+	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
+	yylval.str = strdup(yytext);
+	return kwMAIN;
 }
 new {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwNEW;
+	yylval.str=strdup(yytext);
+	return kwNEW;
 }
 private {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwPRIVATE;
+	yylval.str=strdup(yytext);
+	return kwPRIVATE;
 }
 public {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwPUBLIC;
+	yylval.str=strdup(yytext);
+	return kwPUBLIC;
 }
 return {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwRETURN;
+	yylval.str=strdup(yytext);
+	return kwRETURN;
 }
 static {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwSTATIC;
+	yylval.str=strdup(yytext);
+	return kwSTATIC;
 }
 switch {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwSWITCH;
+	yylval.str=strdup(yytext);
+	return kwSWITCH;
 }
 System.out.println { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwPRINTLN;
+	yylval.str=strdup(yytext);
+	return kwPRINTLN;
 }
 this {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwTHIS;
+	yylval.str=strdup(yytext);
+	return kwTHIS;
 }
 try {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwTRY;
+	yylval.str=strdup(yytext);
+	return kwTRY;
 }
 void {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwVOID;
+	yylval.str=strdup(yytext);
+	return kwVOID;
 }
 while {
 	ECHO; 
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Mot cle","-1","-1","-1","-1","-1","-1",1);
-	// yylval.str=strdup(yytext);
-	// return kwWHILE;
+	yylval.str=strdup(yytext);
+	return kwWHILE;
 }
 
 
@@ -219,8 +226,8 @@ while {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Idf","LOGICAL","/","/","/","/","/",0);
-	// yylval.str=strdup(yytext);
-	// return bool;
+	yylval.str=strdup(yytext);
+	return BOOL;
 }
 {real} {
     precision = 0;
@@ -234,14 +241,14 @@ while {
         nb_character += strlen(yytext);
 		// rechercher(yytext,"Cst","REAL","/","/","/","/","/",0);
         // yylval.str = strdup(yytext);
-        // return FLOAT;
+        return FLOAT;
     }
     else if (atof(yytext) >= -1.7e308 && atof(yytext) <= 1.7e308 && precision <= 16) {
         ECHO;
         nb_character += strlen(yytext);
 		// rechercher(yytext,"Cst","REAL","/","/","/","/","/",0);
         // yylval.str = strdup(yytext);
-        // return DOUBLE;
+        return DOUBLE;
     }
     else {
         printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
@@ -252,8 +259,8 @@ while {
 		ECHO;
 		nb_character += strlen(yytext);
 		// rechercher(yytext,"Cst","INTEGER","/","/","/","/","/",0);
-		// yylval.str=strdup(yytext);
-		// return integer;
+		yylval.str=strdup(yytext);
+		return INTEGER;
     } 
 	else{
 		printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
@@ -264,12 +271,11 @@ while {
 	nb_character += strlen(yytext);
 	sprintf(x,"%d",strlen(yytext)-2);
 	// rechercher(yytext,"Idf","CHARACTER","/",x,"/","/","/",0);
-	// yylval.str=strdup(yytext);
-	// return character;
+	yylval.str=strdup(yytext);
+	return CHARACTER;
 }
 {IDF} {
-	/* TODO: Ask about IDF min size */
-	if(strlen(yytext)>10){		
+	if(strlen(yytext)>256){		
 		printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
 	}
 	else{
@@ -280,8 +286,8 @@ while {
 		// else {
 		// 	sprintf(x,"LOCAL %d",emp); rechercher(yytext,"Idf","-1","-1","-1","-1","-1",x,0);
 		// }
-		// yylval.str=strdup(yytext);
-		// return idf;
+		yylval.str=strdup(yytext);
+		return IDF;
 	}
 }
 
@@ -289,170 +295,178 @@ while {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opGE;
+	yylval.str=strdup(yytext);
+	return opGE;
 }
 ">" { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opGT;
+	yylval.str=strdup(yytext);
+	return opGT;
 }
 "==" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opEQ;
+	yylval.str=strdup(yytext);
+	return opEQ;
 }
 "<=" { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opLE;
+	yylval.str=strdup(yytext);
+	return opLE;
 }
 "<" { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opLT;
+	yylval.str=strdup(yytext);
+	return opLT;
 }
 "!=" { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opNE;
+	yylval.str=strdup(yytext);
+	return opNE;
 }
 "||" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opOR;
+	yylval.str=strdup(yytext);
+	return opOR;
 }
 "&&" { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opAND;
+	yylval.str=strdup(yytext);
+	return opAND;
 }
 "!" { 
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opNOT;
+	yylval.str=strdup(yytext);
+	return opNOT;
 }
 "+" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opADD;
+	yylval.str=strdup(yytext);
+	return opADD;
 }
 "-" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opMINUS;
+	yylval.str=strdup(yytext);
+	return opMINUS;
 }
 "*" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opMUL;
+	yylval.str=strdup(yytext);
+	return opMUL;
 }
 "/" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opDIV;
+	yylval.str=strdup(yytext);
+	return opDIV;
 }
 "%" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opMOD;
+	yylval.str=strdup(yytext);
+	return opMOD;
 }
 "=" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return opASSIGN;
+	yylval.str=strdup(yytext);
+	return opASSIGN;
 }
 ";" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return pvg;
+	yylval.str=strdup(yytext);
+	return pvg;
 }
 "(" {
     ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return po;
+	yylval.str=strdup(yytext);
+	return po;
 }
 ")" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return pf;
+	yylval.str=strdup(yytext);
+	return pf;
 }
 "{" {
     ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return acco;
+	yylval.str=strdup(yytext);
+	return acco;
 }
 "}" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return accf;
+	yylval.str=strdup(yytext);
+	return accf;
 }
 "[" {
     ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return dimo;
+	yylval.str=strdup(yytext);
+	return dimo;
 }
 "]" {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return dimf;
+	yylval.str=strdup(yytext);
+	return dimf;
 }
 "." {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return pt;
+	yylval.str=strdup(yytext);
+	return pt;
 }
 "," {
 	ECHO;
 	nb_character += strlen(yytext);
 	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
-	// yylval.str=strdup(yytext);
-	// return vg;
+	yylval.str=strdup(yytext);
+	return vg;
 }
+":" {
+	ECHO;
+	nb_character += strlen(yytext);
+	// rechercher(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
+	yylval.str=strdup(yytext);
+	return dp;
+}
+
 
 {commentaire} {
 	ECHO;
@@ -471,9 +485,3 @@ while {
 	printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
 }
 
-%%
-int main(int argc,char *argv[]) {
-   file_name=argv[1];
-   yylex();
-   return 0;   
-}
