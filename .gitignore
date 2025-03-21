@@ -3,3 +3,4 @@ lex.yy.c
 syntaxique.tab.c
 syntaxique.tab.h
 projet.exe
+syntaxique.output
