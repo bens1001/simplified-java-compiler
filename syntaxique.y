@@ -40,7 +40,7 @@ char tab[20];
     char* str;
 }
 
-%type <str>TYPE OBJECT EXPRESSION MESSAGE MESSAGEIDF MESSAGEVAR INDEX CONDITION OPLOG OPCOMP
+%type <str>TYPE EXPRESSION MESSAGE MESSAGEIDF MESSAGEVAR INDEX CONDITION OPLOG OPCOMP
 ;
 
 %token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwFINAL kwFINALLY kwFLOAT kwIF kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
@@ -59,30 +59,28 @@ char tab[20];
 JAVA: CLASSLIST MAIN {printf("\n\nCode correct!\n\n"); YYACCEPT;}
 ;
 
-CLASS: kwCLASS IDF acco ENTITYLIST accf 
+CLASS: kwCLASS IDF acco ENTITY_LIST accf 
 ;
 
 CLASSLIST: CLASS CLASSLIST
          | {emp=0;}
-
-MAIN: kwMAIN acco kwPUBLIC kwSTATIC kwVOID kwMAIN po METHODPARAM pf acco INST accf accf
-
-ENTITY: CONSTRUCTOR 
-      | METHOD 
-      | VARIABLE 
 ;
 
-ENTITYLIST: ENTITY ENTITYLIST
-          | ENTITY
+MAIN: kwMAIN acco kwPUBLIC kwSTATIC kwVOID kwMAIN po METHODPARAM pf acco INSTRUCTION_LIST accf accf
 ;
 
-CONSTRUCTOR: IDF po METHODPARAM pf acco INST accf
-        
-METHOD: TYPE IDF po METHODPARAM pf acco INST accf
+ENTITY_ITEM: METHOD 
+           | VARIABLE_LIST 
+;
+
+ENTITY_LIST: ENTITY_ITEM ENTITY_LIST
+           | ENTITY_ITEM
+;
+
+METHOD: TYPE IDF po METHODPARAM pf acco INSTRUCTION_LIST accf
 ;
 
 METHODPARAM: IDF METHODPARA
-           | 
 ;
 
 METHODPARA: vg IDF METHODPARA
@@ -95,19 +93,32 @@ TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
     | kwBOOLEAN {$$=strdup($1);strcpy(savet,$1);}
     | kwCHAR    {$$=strdup($1);strcpy(savet,$1);}
     | kwVOID    {$$=strdup($1);strcpy(savet,$1);}
-    | OBJECT    {$$=strdup($1);strcpy(savet,$1);}
 ;
 
-OBJECT: IDF {$$=strdup($1);}
 
-VARIABLE : VAR VARIABLE 
-         | VARRAY  VARIABLE
-         | VMAT  VARIABLE
-         |
+VARIABLE_LIST: VARIABLE_LIST_NONEMPTY
+             | 
 ;
 
-VAR: TYPE IDF LISTVARIABLE pvg 
+VARIABLE_LIST_NONEMPTY: VARIABLE_ITEM
+                      | VARIABLE_LIST_NONEMPTY VARIABLE_ITEM
+;
+
+VARIABLE_ITEM: SOLO_VARIABLE 
+             | ARRAY_VARIABLE 
+             | MATRIX_VARIABLE
+;
+
+VARIABLE_SUFFIX: OPTIONAL_ASSIGN LISTVARIABLE pvg
+;
+
+OPTIONAL_ASSIGN: opASSIGN EXPRESSION 
+               | 
+
+SOLO_VARIABLE: TYPE IDF VARIABLE_SUFFIX 
               { 
+                // sans affectation
+
                 // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 //   YYABORT;
@@ -118,9 +129,9 @@ VAR: TYPE IDF LISTVARIABLE pvg
                 //   sprintf(empla,"LOCAL %d",emp); 
                 //   miseajour($2,"Variable",$1,"-1","/","/","/",empla,"SYNTAXIQUE");
                 // }
-              }
-    | TYPE IDF opASSIGN EXPRESSION LISTVARIABLE pvg 
-              { 
+
+                // avec affectation
+
                 // diviserChaine($4,partie1_1,partie1_2);
                 // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -142,16 +153,18 @@ VAR: TYPE IDF LISTVARIABLE pvg
               }
 ; 
 
-DIMENSIONARRAY: INTEGER
+ARRAY_DIMENSION: INTEGER
               | 
 ;
 
-ARRAY : vg EXPRESSION ARRAY 
-      | accf
+ARRAY_INSTANCE : vg EXPRESSION ARRAY_INSTANCE 
+               | accf
 ;
 
-VARRAY: TYPE dimo DIMENSIONARRAY dimf IDF LISTVARIABLE pvg 
+ARRAY_VARIABLE: TYPE dimo ARRAY_DIMENSION dimf IDF VARIABLE_SUFFIX 
             { 
+              // sans affectation
+
               // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
               //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
               //   YYABORT;
@@ -168,9 +181,9 @@ VARRAY: TYPE dimo DIMENSIONARRAY dimf IDF LISTVARIABLE pvg
               // }
               // remplir_quad("BOUNDS","1",$5,"<vide>");
               // remplir_quad("ADEC",$2,"<vide>","<vide>");
-            }
-      | TYPE dimo DIMENSIONARRAY dimf IDF opASSIGN acco EXPRESSION ARRAY LISTVARIABLE pvg 
-              { 
+
+              // avec affectation 
+                
                 // diviserChaine($4,partie1_1,partie1_2);
                 // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -189,15 +202,17 @@ VARRAY: TYPE dimo DIMENSIONARRAY dimf IDF LISTVARIABLE pvg
                 //   }
                 // }
                 // remplir_quad("=",partie1_2,"<vide>",$2);
-              }
+            }
 ;
 
-MATRIX: ARRAY vg
-      | accf
+MATRIX_INSTANCE: ARRAY_INSTANCE vg
+               | accf
 ;
 
-VMAT: TYPE dimo INTEGER vg INTEGER dimf IDF LISTVARIABLE pvg 
+MATRIX_VARIABLE: TYPE dimo INTEGER vg INTEGER dimf IDF VARIABLE_SUFFIX 
             { 
+              // sans affectation
+
               // sprintf(taille,"%d",atoi($4)*atoi($6));
               // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
               //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -216,9 +231,9 @@ VMAT: TYPE dimo INTEGER vg INTEGER dimf IDF LISTVARIABLE pvg
               // remplir_quad("BOUNDS","1",$4,"<vide>");
               // remplir_quad("BOUNDS","2",$6,"<vide>");
               // remplir_quad("ADEC",$2,"<vide>","<vide>");
-            }
-    | TYPE dimo INTEGER vg INTEGER dimf IDF opASSIGN acco ARRAY MATRIX LISTVARIABLE pvg 
-              { 
+
+              // avec affectation
+
                 // diviserChaine($4,partie1_1,partie1_2);
                 // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -237,7 +252,7 @@ VMAT: TYPE dimo INTEGER vg INTEGER dimf IDF LISTVARIABLE pvg
                 //   }
                 // }
                 // remplir_quad("=",partie1_2,"<vide>",$2);
-              }
+            }
 ;
 
 LISTVARIABLE: LISTVAR
@@ -288,7 +303,7 @@ LISTVAR: vg IDF LISTVARIABLE
                   }
 ;
 
-LISTVARRAY: vg dimo DIMENSIONARRAY dimf IDF LISTVARIABLE 
+LISTVARRAY: vg dimo ARRAY_DIMENSION dimf IDF LISTVARIABLE 
                   { 
                     // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -307,7 +322,7 @@ LISTVARRAY: vg dimo DIMENSIONARRAY dimf IDF LISTVARIABLE
                     // remplir_quad("BOUNDS","1",$5,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
                   }
-          | vg dimo DIMENSIONARRAY dimf IDF opASSIGN ARRAY LISTVARIABLE 
+          | vg dimo ARRAY_DIMENSION dimf IDF opASSIGN ARRAY_INSTANCE LISTVARIABLE 
                   { 
                     // diviserChaine($4,partie1_1,partie1_2);
                     // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
@@ -357,7 +372,7 @@ LISTVMAT: vg dimo INTEGER vg INTEGER dimf IDF LISTVARIABLE
                     // remplir_quad("BOUNDS","2",$7,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
                   }
-          | vg dimo INTEGER vg INTEGER dimf IDF opASSIGN MATRIX LISTVARIABLE pvg 
+          | vg dimo INTEGER vg INTEGER dimf IDF opASSIGN MATRIX_INSTANCE LISTVARIABLE pvg 
               { 
                 // diviserChaine($4,partie1_1,partie1_2);
                 // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
@@ -380,16 +395,16 @@ LISTVMAT: vg dimo INTEGER vg INTEGER dimf IDF LISTVARIABLE
               }
 ;
 
-INST: INSTS INST
-    |
+INSTRUCTION_LIST: INSTRUCTION_ITEM INSTRUCTION_LIST
+                | INSTRUCTION_ITEM
 ;
 
-INSTS: OUTPUT    pvg 
-     | ASSIGN    pvg 
-     | CONTROLE        
-     /* | BOUCLE     
-     | CALLPROC  pvg   {param=0;} */
-     | RETURN    pvg
+INSTRUCTION_ITEM: OUTPUT    pvg 
+                | ASSIGN    pvg 
+                | CONTROLE        
+                /* | BOUCLE     
+                | CALLPROC  pvg   {param=0;} */
+                | RETURN    pvg
 ; 
 
 INDEX: IDF 
@@ -765,7 +780,7 @@ R2_1_CONTROLE: kwIF CONDITION
               }
 ;
 
-R1_2_CONTROLE: R2_1_CONTROLE acco INST 
+R1_2_CONTROLE: R2_1_CONTROLE acco INSTRUCTION_LIST 
               {
                 fin_if=qc;
                 remplir_quad("BR"," ","<vide>","<vide>");
@@ -788,7 +803,7 @@ R3_1_CONTROLE: kwIF EXPRESSION
               }
 ;
 
-R4_2_CONTROLE: R3_1_CONTROLE acco INST 
+R4_2_CONTROLE: R3_1_CONTROLE acco INSTRUCTION_LIST 
               {
                 fin_if=qc;
                 remplir_quad("BR"," ","<vide>","<vide>");
@@ -797,22 +812,22 @@ R4_2_CONTROLE: R3_1_CONTROLE acco INST
               }
 ;
 
-CONTROLE: R1_2_CONTROLE kwELSE INST accf 
+CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST accf 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
               }
-        | R2_1_CONTROLE acco INST accf 
+        | R2_1_CONTROLE acco INSTRUCTION_LIST accf 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
               }
-        | R3_1_CONTROLE acco INST accf 
+        | R3_1_CONTROLE acco INSTRUCTION_LIST accf 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
               }
-        | R4_2_CONTROLE kwELSE INST accf 
+        | R4_2_CONTROLE kwELSE INSTRUCTION_LIST accf 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
@@ -957,7 +972,7 @@ RETURN: kwRETURN EXPRESSION
             }
 ; */
 
-/* MAIN: kwPROGRAM idf DEC INST kwEND pt { miseajour($2,"Programme Principal","/","/","/","/","/","GLOBAL","SYNTAXIQUE");}
+/* MAIN: kwPROGRAM idf DEC INSTRUCTION_LIST kwEND pt { miseajour($2,"Programme Principal","/","/","/","/","/","GLOBAL","SYNTAXIQUE");}
 ; */
 
 /* DEC: DECSOLO DEC 
@@ -1316,11 +1331,11 @@ RETURN: kwRETURN EXPRESSION
               |
 ; */
 
-/* INST: INSTS INST
+/* INSTRUCTION_LIST: INSTRUCTION_ITEM INSTRUCTION_LIST
     |
 ; */
 
-/* INSTS: EQU         pvg 
+/* INSTRUCTION_ITEM: EQU         pvg 
      | ENTREE      pvg 
      | SORTIE      pvg 
      | AFFECTATION pvg 
@@ -1606,7 +1621,7 @@ RETURN: kwRETURN EXPRESSION
               }
 ;
 
-R1_2_CONTROLE: R2_1_CONTROLE kwTHEN INST 
+R1_2_CONTROLE: R2_1_CONTROLE kwTHEN INSTRUCTION_LIST 
               {
                 fin_if=qc;
                 remplir_quad("BR"," ","<vide>","<vide>");
@@ -1629,7 +1644,7 @@ R3_1_CONTROLE: kwIF EXPRESSION
               }
 ;
 
-R4_2_CONTROLE: R3_1_CONTROLE kwTHEN INST 
+R4_2_CONTROLE: R3_1_CONTROLE kwTHEN INSTRUCTION_LIST 
               {
                 fin_if=qc;
                 remplir_quad("BR"," ","<vide>","<vide>");
@@ -1638,22 +1653,22 @@ R4_2_CONTROLE: R3_1_CONTROLE kwTHEN INST
               }
 ;
 
-CONTROLE: R1_2_CONTROLE kwELSE INST kwENDIF 
+CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
               }
-        | R2_1_CONTROLE kwTHEN INST kwENDIF 
+        | R2_1_CONTROLE kwTHEN INSTRUCTION_LIST kwENDIF 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
               }
-        | R3_1_CONTROLE kwTHEN INST kwENDIF 
+        | R3_1_CONTROLE kwTHEN INSTRUCTION_LIST kwENDIF 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
               }
-        | R4_2_CONTROLE kwELSE INST kwENDIF 
+        | R4_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
@@ -1716,14 +1731,14 @@ R2_1_BOUCLE: kwDOWHILE EXPRESSION
                 }
 ;
 
-BOUCLE: R1_1_BOUCLE INST kwENDDO 
+BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO 
                 {
                   sprintf(i,"%d",deb_dowhile);
                   remplir_quad("BR",i,"<vide>","<vide>");
                   sprintf(i,"%d",qc);
                   mise_jr_quad(fin_dowhile,2,i);
                 }
-      | R2_1_BOUCLE INST kwENDDO 
+      | R2_1_BOUCLE INSTRUCTION_LIST kwENDDO 
                 {
                   sprintf(i,"%d",deb_dowhile);
                   remplir_quad("BR",i,"<vide>","<vide>");
