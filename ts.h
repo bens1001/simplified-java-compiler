@@ -482,13 +482,13 @@ void afficher()
     // Affichage de la table des symboles mots clés
     KeywordNode *currentKeyword = table.tabm;
     printf("\n/*************************Table des symboles mots cles*************************/\n");
-    printf("_____________________________________\n");
-    printf("\t|  NomEntite  |  CodeEntite | \n");
-    printf("_____________________________________\n");
+    printf("_______________________________________________________________________\n");
+    printf("\t|\t\t   Nom_Entite    \t\t|  CodeEntite | \n");
+    printf("_______________________________________________________________________\n");
 
     while (currentKeyword != NULL)
     {
-        printf("\t|%12s |%12s | \n", currentKeyword->name, currentKeyword->type);
+        printf("\t| %45s |%12s | \n", currentKeyword->name, currentKeyword->type);
         currentKeyword = currentKeyword->next;
     }
 

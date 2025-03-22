@@ -16,9 +16,10 @@ number [0-9]
 IDF {letter}({letter}|{number})*
 integer [-+]?{number}+
 real [-+]?{number}+"."{number}+
-string "\"".+"\""
+string  (\"([^\"\n]+)\"|'([^'\n]+)')
 bool "TRUE"|"FALSE"
-commentaire "\/\/"[^;]+;
+commentaire "\/\/"[^\n]*
+exception {letter}*"Exception"
 %%
 "boolean" { 
 	ECHO;
@@ -125,6 +126,13 @@ commentaire "\/\/"[^;]+;
 	yylval.str=strdup(yytext);
 	return kwIF;
 }
+"import" { 
+	ECHO;
+	nb_character += strlen(yytext);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
+	yylval.str=strdup(yytext);
+	return kwIMPORT;
+}
 "int" {
 	ECHO; 
 	nb_character += strlen(yytext);
@@ -132,14 +140,7 @@ commentaire "\/\/"[^;]+;
 	yylval.str=strdup(yytext);
 	return kwINT;
 }
-"main" {
-	ECHO;
-	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
-	yylval.str = strdup(yytext);
-	return kwMAIN;
-}
-"Main" {
+"main"|"Main" {
 	ECHO;
 	nb_character += strlen(yytext);
 	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
@@ -195,6 +196,13 @@ commentaire "\/\/"[^;]+;
 	yylval.str=strdup(yytext);
 	return kwPRINTLN;
 }
+"System.out.print" { 
+	ECHO;
+	nb_character += strlen(yytext);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
+	yylval.str=strdup(yytext);
+	return kwPRINT;
+}
 "this" {
 	ECHO; 
 	nb_character += strlen(yytext);
@@ -222,6 +230,13 @@ commentaire "\/\/"[^;]+;
 	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwWHILE;
+}
+{exception} {
+	ECHO;
+	nb_character += strlen(yytext);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
+	yylval.str = strdup(yytext);
+	return kwEXCEPTION;
 }
 
 {bool} {
@@ -253,7 +268,7 @@ commentaire "\/\/"[^;]+;
         return DOUBLE;
     }
     else {
-        printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
+        printf("\nFile '%s', lexical error, line %d, column %d, entity '%s' \n",file_name,nb_line,nb_character,yytext);
     }
 }
 {integer} {	
@@ -265,7 +280,7 @@ commentaire "\/\/"[^;]+;
 		return INTEGER;
     } 
 	else{
-		printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
+		printf("\nFile '%s', lexical error, line %d, column %d, entity '%s' \n",file_name,nb_line,nb_character,yytext);
 	}	
 }
 {string} {
@@ -278,16 +293,16 @@ commentaire "\/\/"[^;]+;
 }
 {IDF} {
 	if(strlen(yytext)>256){		
-		printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
+		printf("\nFile '%s', lexical error, line %d, column %d, entity '%s' \n",file_name,nb_line,nb_character,yytext);
 	}
 	else{
 		ECHO;
 		nb_character += strlen(yytext);
-		// if (emp==0)
-		// 	search(yytext,"Idf","-1","-1","-1","-1","-1","GLOBAL",0);
-		// else {
-		// 	sprintf(x,"LOCAL %d",emp); search(yytext,"Idf","-1","-1","-1","-1","-1",x,0);
-		// }
+		if (emp==0)
+			search(yytext,"IDF","-1","-1","-1","-1","-1","GLOBAL",0);
+		else {
+			sprintf(x,"LOCAL %d",emp); search(yytext,"IDF","-1","-1","-1","-1","-1",x,0);
+		}
 		yylval.str=strdup(yytext);
 		return IDF;
 	}
@@ -484,6 +499,6 @@ commentaire "\/\/"[^;]+;
 
 . {
 	nb_character += strlen(yytext);
-	printf("\nFile '%s', lexical error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yytext);
+	printf("\nFile '%s', lexical error, line %d, column %d, entity '%s' \n",file_name,nb_line,nb_character,yytext);
 }
 

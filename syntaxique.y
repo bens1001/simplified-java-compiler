@@ -40,10 +40,10 @@ char tab[20];
     char* str;
 }
 
-%type <str>TYPE EXPRESSION MESSAGE MESSAGEIDF MESSAGEVAR INDEX CONDITION OPLOG OPCOMP
+%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH
 ;
 
-%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwFINAL kwFINALLY kwFLOAT kwIF kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
+%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
 ;
 
 %start JAVA
@@ -54,69 +54,124 @@ char tab[20];
 %left opGE opGT opEQ opLE opLT opNE
 %left opOR
 %left opAND 
+%left pt
 
 %%
-JAVA: CLASSLIST MAIN {printf("\n\nCode correct!\n\n"); YYACCEPT;}
+JAVA: IMPORT_LIST CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
+;
+
+IMPORT_LIST: IMPORT_LIST IMPORT_ITEM
+           |
+;
+
+IMPORT_ITEM: kwIMPORT IMPORT_PATH pvg
+;
+
+IMPORT_PATH: IDF { $$ = strdup($1); }
+           | IMPORT_PATH pt IDF 
+               {
+                  // char *tmp = malloc(strlen($1) + strlen($3) + 2);
+                  // sprintf(tmp, "%s.%s", $1, $3);
+                  // $$ = tmp;
+               }
+;
+
+MAIN_CLASS: kwCLASS kwMAIN acco MAIN_METHOD accf { emp = 0; }
+          |
+;
+
+MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf 
+;
+
+CLASS_LIST: CLASS_LIST CLASS
+          | 
 ;
 
 CLASS: kwCLASS IDF acco ENTITY_LIST accf 
 ;
 
-CLASSLIST: CLASS CLASSLIST
-         | {emp=0;}
+ENTITY_LIST: ENTITY_LIST_NONEMPTY
+           | CONSTRUCTOR
+           |
 ;
 
-MAIN: kwMAIN acco kwPUBLIC kwSTATIC kwVOID kwMAIN po METHODPARAM pf acco INSTRUCTION_LIST accf accf
+CONSTRUCTOR: IDF po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
 ;
 
-ENTITY_ITEM: METHOD 
-           | VARIABLE_LIST 
+ENTITY_LIST_NONEMPTY: ENTITY_ITEM
+                    | ENTITY_LIST_NONEMPTY ENTITY_ITEM
 ;
 
-ENTITY_LIST: ENTITY_ITEM ENTITY_LIST
-           | ENTITY_ITEM
+ENTITY_ITEM: TYPE IDF ENTITY_ITEM_SUFFIX
 ;
 
-METHOD: TYPE IDF po METHODPARAM pf acco INSTRUCTION_LIST accf
+ENTITY_ITEM_SUFFIX: METHOD_SUFFIX
+                  | VARIABLE_SUFFIX pvg
 ;
 
-METHODPARAM: IDF METHODPARA
+METHOD_SUFFIX: po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
 ;
 
-METHODPARA: vg IDF METHODPARA
-          |
+METHOD_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
+                     |
 ;
 
-TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
-    | kwFLOAT   {$$=strdup($1);strcpy(savet,$1);}
-    | kwDOUBLE  {$$=strdup($1);strcpy(savet,$1);}
-    | kwBOOLEAN {$$=strdup($1);strcpy(savet,$1);}
-    | kwCHAR    {$$=strdup($1);strcpy(savet,$1);}
-    | kwVOID    {$$=strdup($1);strcpy(savet,$1);}
+METHOD_PARAMETER_ITEM: vg TYPE IDF METHOD_PARAMETER_ITEM
+                     |
+;
+
+TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION
+    | IDF OPTIONAL_MULTIDIMENSION
+;
+
+BASE_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
+         | kwFLOAT   {$$=strdup($1);strcpy(savet,$1);}
+         | kwDOUBLE  {$$=strdup($1);strcpy(savet,$1);}
+         | kwBOOLEAN {$$=strdup($1);strcpy(savet,$1);}
+         | kwCHAR    {$$=strdup($1);strcpy(savet,$1);}
+         | kwVOID    {$$=strdup($1);strcpy(savet,$1);}
+;
+
+OPTIONAL_MULTIDIMENSION: dimo INDEX dimf OPTIONAL_MULTIDIMENSION
+                       | dimo dimf OPTIONAL_MULTIDIMENSION
+                       |
 ;
 
 
-VARIABLE_LIST: VARIABLE_LIST_NONEMPTY
-             | 
+INDEX: EXPRESSION_ITEM 
+        { 
+          // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+          //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
+          //   YYABORT;
+          // }
+          // strcpy(typeIDF,getType($1,emp,"Variable"));
+          // if(strcmp(typeIDF,"INTEGER")!=0){
+          //   printf("\nFile '%s', line %d, character %d: semantic error : Unexpected index type '%s'.\n",file_name,nb_line,nb_character,$1);
+          //   YYABORT;
+          // }
+          // else{
+          //   if(atof($1)<1){
+          //     printf("\nFile '%s', line %d, character %d: semantic error : Negative index value.\n",file_name,nb_line,nb_character);
+          //     YYABORT;
+          //   }
+          // }
+
+          // if(atof($1)<1){
+          //     printf("\nFile '%s', line %d, character %d: semantic error : Negative index value.\n",file_name,nb_line,nb_character);
+          //     YYABORT;
+          // }
+          // $$=strdup($1);
+        }
 ;
 
-VARIABLE_LIST_NONEMPTY: VARIABLE_ITEM
-                      | VARIABLE_LIST_NONEMPTY VARIABLE_ITEM
-;
-
-VARIABLE_ITEM: SOLO_VARIABLE 
-             | ARRAY_VARIABLE 
-             | MATRIX_VARIABLE
-;
-
-VARIABLE_SUFFIX: OPTIONAL_ASSIGN LISTVARIABLE pvg
-;
-
-OPTIONAL_ASSIGN: opASSIGN EXPRESSION 
+OPTIONAL_ASSIGN: opASSIGN EXPRESSION
                | 
+;
 
-SOLO_VARIABLE: TYPE IDF VARIABLE_SUFFIX 
+VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST 
               { 
+                // solo
+
                 // sans affectation
 
                 // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
@@ -150,20 +205,10 @@ SOLO_VARIABLE: TYPE IDF VARIABLE_SUFFIX
                 //   }
                 // }
                 // remplir_quad("=",partie1_2,"<vide>",$2);
-              }
-; 
 
-ARRAY_DIMENSION: INTEGER
-              | 
-;
+                // array
 
-ARRAY_INSTANCE : vg EXPRESSION ARRAY_INSTANCE 
-               | accf
-;
-
-ARRAY_VARIABLE: TYPE dimo ARRAY_DIMENSION dimf IDF VARIABLE_SUFFIX 
-            { 
-              // sans affectation
+                // sans affectation
 
               // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
               //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -202,16 +247,10 @@ ARRAY_VARIABLE: TYPE dimo ARRAY_DIMENSION dimf IDF VARIABLE_SUFFIX
                 //   }
                 // }
                 // remplir_quad("=",partie1_2,"<vide>",$2);
-            }
-;
 
-MATRIX_INSTANCE: ARRAY_INSTANCE vg
-               | accf
-;
+                // matrix
 
-MATRIX_VARIABLE: TYPE dimo INTEGER vg INTEGER dimf IDF VARIABLE_SUFFIX 
-            { 
-              // sans affectation
+                 // sans affectation
 
               // sprintf(taille,"%d",atoi($4)*atoi($6));
               // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
@@ -252,17 +291,15 @@ MATRIX_VARIABLE: TYPE dimo INTEGER vg INTEGER dimf IDF VARIABLE_SUFFIX
                 //   }
                 // }
                 // remplir_quad("=",partie1_2,"<vide>",$2);
-            }
-;
+              }
+; 
 
-LISTVARIABLE: LISTVAR
-            | LISTVARRAY
-            | LISTVMAT
-            | 
-;
-
-LISTVAR: vg IDF LISTVARIABLE 
+VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST 
                   {  
+                    // solo
+
+                    // sans affectation 
+
                     // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
@@ -273,9 +310,9 @@ LISTVAR: vg IDF LISTVARIABLE
                     //   sprintf(empla,"LOCAL %d",emp); 
                     //   miseajour($2,"Variable",savet,"-1","/","/","/",empla,"SYNTAXIQUE");
                     // }
-                  }
-        | vg IDF opASSIGN EXPRESSION LISTVARIABLE 
-                  { 
+
+                    // avec affectation
+
                     // diviserChaine($4,partie1_1,partie1_2);
                     // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -300,11 +337,11 @@ LISTVAR: vg IDF LISTVARIABLE
                     //   }
                     // }
                     // remplir_quad("=",partie1_2,"<vide>",$2);
-                  }
-;
 
-LISTVARRAY: vg dimo ARRAY_DIMENSION dimf IDF LISTVARIABLE 
-                  { 
+                    // array
+
+                    // sans affectation
+
                     // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
@@ -321,10 +358,10 @@ LISTVARRAY: vg dimo ARRAY_DIMENSION dimf IDF LISTVARIABLE
                     // }
                     // remplir_quad("BOUNDS","1",$5,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
-                  }
-          | vg dimo ARRAY_DIMENSION dimf IDF opASSIGN ARRAY_INSTANCE LISTVARIABLE 
-                  { 
-                    // diviserChaine($4,partie1_1,partie1_2);
+
+                    //avec affectation
+
+                     // diviserChaine($4,partie1_1,partie1_2);
                     // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
@@ -348,11 +385,12 @@ LISTVARRAY: vg dimo ARRAY_DIMENSION dimf IDF LISTVARIABLE
                     //   }
                     // }
                     // remplir_quad("=",partie1_2,"<vide>",$2);
-                  }
-;
 
-LISTVMAT: vg dimo INTEGER vg INTEGER dimf IDF LISTVARIABLE 
-                  { 
+                    // matrix
+
+                    // sans affectation 
+
+
                     // sprintf(taille,"%d",atoi($5)*atoi($7));
                     // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
@@ -371,28 +409,28 @@ LISTVMAT: vg dimo INTEGER vg INTEGER dimf IDF LISTVARIABLE
                     // remplir_quad("BOUNDS","1",$5,"<vide>");
                     // remplir_quad("BOUNDS","2",$7,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
+
+                    //avec affectation
+                      // diviserChaine($4,partie1_1,partie1_2);
+                      // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                      //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
+                      //   YYABORT;
+                      // }
+                      // if (emp==0)
+                      //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                      // else {
+                      //   sprintf(empla,"LOCAL %d",emp); 
+                      //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                      // }
+                      // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                      //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
+                      //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                      //     YYABORT;
+                      //   }
+                      // }
+                      // remplir_quad("=",partie1_2,"<vide>",$2);
                   }
-          | vg dimo INTEGER vg INTEGER dimf IDF opASSIGN MATRIX_INSTANCE LISTVARIABLE pvg 
-              { 
-                // diviserChaine($4,partie1_1,partie1_2);
-                // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
-                //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                //   YYABORT;
-                // }
-                // if (emp==0)
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
-                // else {
-                //   sprintf(empla,"LOCAL %d",emp); 
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",empla,"SEMANTIQUE");
-                // }
-                // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
-                //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
-                //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                //     YYABORT;
-                //   }
-                // }
-                // remplir_quad("=",partie1_2,"<vide>",$2);
-              }
+            |
 ;
 
 INSTRUCTION_LIST: INSTRUCTION_ITEM INSTRUCTION_LIST
@@ -400,84 +438,66 @@ INSTRUCTION_LIST: INSTRUCTION_ITEM INSTRUCTION_LIST
 ;
 
 INSTRUCTION_ITEM: OUTPUT    pvg 
+                | DECLARATION pvg
                 | ASSIGN    pvg 
-                | CONTROLE        
-                /* | BOUCLE     
-                | CALLPROC  pvg   {param=0;} */
+                | IF_ELSE_BLOCK        
+                /* | LOOP_BLOCK     */
+                | SWITCH_CASE_BLOCK 
+                | TRY_CATCH_BLOCK
+                | OBJECT_ACCESS_METHOD  pvg   {param=0;}
                 | RETURN    pvg
 ; 
 
-INDEX: IDF 
-        { 
-          // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
-          //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
-          //   YYABORT;
-          // }
-          // strcpy(typeIDF,getType($1,emp,"Variable"));
-          // if(strcmp(typeIDF,"INTEGER")!=0){
-          //   printf("\nFile '%s', line %d, character %d: semantic error : Unexpected index type '%s'.\n",file_name,nb_line,nb_character,$1);
-          //   YYABORT;
-          // }
-          // else{
-          //   if(atof($1)<1){
-          //     printf("\nFile '%s', line %d, character %d: semantic error : Negative index value.\n",file_name,nb_line,nb_character);
-          //     YYABORT;
-          //   }
-          // }
-        }
-     | INTEGER 
-        {
-          // if(atof($1)<1){
-          //     printf("\nFile '%s', line %d, character %d: semantic error : Negative index value.\n",file_name,nb_line,nb_character);
-          //     YYABORT;
-          // }
-          // $$=strdup($1);
-        }
+DECLARATION: TYPE IDF VARIABLE_SUFFIX
 ;
 
-OUTPUT: kwPRINTLN po MESSAGE pf 
+OUTPUT: PRINT po STRING_MESSAGE pf 
           {
             // search($3,"Idf","STRING","/","-1","/","/","/",3);
           }
-      | kwPRINTLN po MESSAGEVAR pf  
+      | PRINT po VARIABLE_MESSAGE pf  
           {
             // search($3,"Idf","STRING","/","-1","/","/","/",3);
           }
-; 
-
-MESSAGE: STRING MESSAGEIDF
-          {
-            // strcat(tab,$1);strcat(tab,$2);
-            // $$=strdup(tab);
-            // strcpy(tab," ");
-          }
-       | STRING
-          {
-            // $$=strdup($1);
-          }
-       | MESSAGEVAR opADD MESSAGE
-          {
-            // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);
-            // $$=strdup(tab);
-            // strcpy(tab," ");
-          }
 ;
 
-MESSAGEIDF: opADD MESSAGEVAR opADD MESSAGE
-              {
-                // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);
-                // $$=strdup(tab);
-                // strcpy(tab," ");
-              }
-          | opADD MESSAGEVAR 
-              {
-                // strcat(tab,$1);strcat(tab,$2);
-                // $$=strdup(tab);
-                // strcpy(tab," ");
-              }
+PRINT: kwPRINTLN
+     | kwPRINT
+
+STRING_MESSAGE: STRING MESSAGE_CONCATENATION
+                  {
+                    // strcat(tab,$1);strcat(tab,$2);
+                    // $$=strdup(tab);
+                    // strcpy(tab," ");
+                  }
+              | STRING
+                  {
+                    // $$=strdup($1);
+                  }
+              | VARIABLE_MESSAGE opADD STRING_MESSAGE
+                  {
+                    // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);
+                    // $$=strdup(tab);
+                    // strcpy(tab," ");
+                  }
+              | { $$=strdup(""); }
 ;
 
-MESSAGEVAR : IDF                      
+MESSAGE_CONCATENATION: opADD VARIABLE_MESSAGE opADD STRING_MESSAGE
+                    {
+                      // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);
+                      // $$=strdup(tab);
+                      // strcpy(tab," ");
+                    }
+                | opADD VARIABLE_MESSAGE 
+                    {
+                      // strcat(tab,$1);strcat(tab,$2);
+                      // $$=strdup(tab);
+                      // strcpy(tab," ");
+                    }
+;
+
+VARIABLE_MESSAGE : OBJECT_ACCESS                      
                 { 
                   // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
                   //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -485,7 +505,7 @@ MESSAGEVAR : IDF
                   // }
                   // $$=strdup($1);
                 }
-          | IDF dimo INDEX dimf 
+          | OBJECT_ACCESS dimo INDEX dimf 
                 { 
                   // if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
                   //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -493,7 +513,7 @@ MESSAGEVAR : IDF
                   // }
                   // $$=strdup($1);
                 }
-          | IDF dimo INDEX vg INDEX dimf 
+          | OBJECT_ACCESS dimo INDEX vg INDEX dimf 
                 { 
                   // if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
                   //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -503,7 +523,7 @@ MESSAGEVAR : IDF
                 }
 ;
 
-ASSIGN: IDF opASSIGN EXPRESSION  
+ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM  
                   { 
                     // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -526,7 +546,7 @@ ASSIGN: IDF opASSIGN EXPRESSION
                     // remplir_quad("=",partie1_2,"<vide>",$1);
                     // miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
                   }
-        | IDF dimo INDEX dimf opASSIGN EXPRESSION
+        | OBJECT_ACCESS dimo INDEX dimf opASSIGN EXPRESSION
                   { 
                     // diviserChaine($6,partie1_1,partie1_2);
                     // if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
@@ -551,7 +571,7 @@ ASSIGN: IDF opASSIGN EXPRESSION
                     // miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
                     // strcpy(tab," ");
                   }   
-           | IDF dimo INDEX vg INDEX dimf opASSIGN EXPRESSION
+           | OBJECT_ACCESS dimo INDEX vg INDEX dimf opASSIGN EXPRESSION
                   { 
                     // diviserChaine($8,partie1_1,partie1_2);
                     // if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
@@ -575,10 +595,80 @@ ASSIGN: IDF opASSIGN EXPRESSION
                     // remplir_quad("=",partie1_2,"<vide>",tab);
                     // miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
                     // strcpy(tab," ");
-                  }  
+                  }
 ;
 
-EXPRESSION: EXPRESSION opADD EXPRESSION
+EXPRESSION: EXPRESSION_ITEM
+          | ARRAY_INSTANCE
+          | OBJECT_CREATION
+;
+
+ARRAY_INSTANCE: acco SUBARRAY_LIST accf
+;
+
+SUBARRAY_LIST: SUBARRAY_ITEM
+             | SUBARRAY_LIST vg SUBARRAY_ITEM
+;
+
+SUBARRAY_ITEM: EXPRESSION_ITEM
+             | ARRAY_INSTANCE
+;
+
+
+OBJECT_CREATION: kwNEW IDF po ARGUMENT_LIST pf
+;
+
+OBJECT_ACCESS: IDF pt IDF
+             | OBJECT_ACCESS_METHOD
+             | IDF
+;
+
+OBJECT_ACCESS_METHOD: IDF pt IDF po ARGUMENT_LIST pf
+                  { 
+                    // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
+                    //   YYABORT;
+                    // }
+                    // if (!idf_existe($4,-1,"Fonction")) {
+                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared function '%s'.\n",file_name,nb_line,nb_character,$4);
+                    //   YYABORT;
+                    // }
+                    // strcpy(typeIDF,getType($1,emp,"Variable"));
+                    // if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"/")!=0) {
+                    //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
+                    //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                    //     YYABORT;
+                    //   }
+                    // }
+                    // if(!verif_param($4,param)){
+                    //   printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
+                    //   YYABORT;
+                    // }
+                    // if (emp==0)
+                    //     search($4,"Idf","/","/","/","/","/","GLOBAL",3);
+                    //   else {
+                    //     sprintf(empla,"LOCAL %d",emp); 
+                    //     search($4,"Idf","/","/","/","/","/",empla,3);
+                    // }
+                  }
+;
+
+ARGUMENT_LIST: ARGUMENTS 
+             | 
+;
+
+ARGUMENTS:
+      EXPRESSION_ITEM
+      { 
+        //  param++;
+      }
+    | ARGUMENTS vg EXPRESSION_ITEM
+      { 
+         // param++
+      }
+;
+
+EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                   { 
                     // diviserChaine($1,partie1_1,partie1_2);
                     // diviserChaine($3,partie2_1,partie2_2);
@@ -600,7 +690,7 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                     // remplir_quad("+",partie1_2,partie2_2,temp);
                     // tmp++;
                   }  
-          | EXPRESSION opMINUS EXPRESSION
+          | EXPRESSION_ITEM opMINUS EXPRESSION_ITEM
                   { 
                     // diviserChaine($1,partie1_1,partie1_2);
                     // diviserChaine($3,partie2_1,partie2_2);
@@ -622,7 +712,7 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                     // remplir_quad("-",partie1_2,partie2_2,temp);
                     // tmp++;
                   }  
-          | EXPRESSION opMUL EXPRESSION
+          | EXPRESSION_ITEM opMUL EXPRESSION_ITEM
                   { 
                     // diviserChaine($1,partie1_1,partie1_2);
                     // diviserChaine($3,partie2_1,partie2_2);
@@ -644,7 +734,7 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                     // remplir_quad("*",partie1_2,partie2_2,temp);
                     // tmp++;
                   }  
-          | EXPRESSION opMOD EXPRESSION
+          | EXPRESSION_ITEM opMOD EXPRESSION_ITEM
                   { 
                     // diviserChaine($1,partie1_1,partie1_2);
                     // diviserChaine($3,partie2_1,partie2_2);
@@ -666,7 +756,7 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                     // remplir_quad("*",partie1_2,partie2_2,temp);
                     // tmp++;
                   }  
-          | EXPRESSION opDIV EXPRESSION 
+          | EXPRESSION_ITEM opDIV EXPRESSION_ITEM 
                   {  
                     // diviserChaine($1,partie1_1,partie1_2);
                     // diviserChaine($3,partie2_1,partie2_2);
@@ -685,7 +775,7 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                     // remplir_quad("/",partie1_2,partie2_2,temp);
                     // tmp++;
                   } 
-          | IDF  
+          | OBJECT_ACCESS  
                   { 
                     // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -698,7 +788,7 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                     // strcat(cat,ch);
                     // $$=strdup(cat);
                   }      
-          | IDF dimo INDEX dimf 
+          | OBJECT_ACCESS dimo INDEX dimf 
                   {
                     // if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -717,7 +807,7 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                     // strcat(cat,ch);
                     // $$=strdup(cat);
                   }
-          | IDF dimo INDEX vg INDEX dimf
+          | OBJECT_ACCESS dimo INDEX vg INDEX dimf
                   {
                     // if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -766,95 +856,95 @@ EXPRESSION: EXPRESSION opADD EXPRESSION
                 // strcat(cat,$1);
                 // $$=strdup(cat);
               }                 
-          | po EXPRESSION pf  
+          | po EXPRESSION_ITEM pf  
               {
                 // $$=strdup($2);
-              }        
+              }
 ;
 
 R2_1_CONTROLE: kwIF CONDITION 
               {
-                deb_else=qc;
-                fin_if=qc;
-                remplir_quad("BNZ"," ",$2,"<vide>");
+                // deb_else=qc;
+                // fin_if=qc;
+                // remplir_quad("BNZ"," ",$2,"<vide>");
               }
 ;
 
-R1_2_CONTROLE: R2_1_CONTROLE acco INSTRUCTION_LIST 
+R1_2_CONTROLE: R2_1_CONTROLE acco INSTRUCTION_LIST accf
               {
-                fin_if=qc;
-                remplir_quad("BR"," ","<vide>","<vide>");
-                sprintf(i,"%d",qc); 
-                mise_jr_quad(deb_else,2,i);
+                // fin_if=qc;
+                // remplir_quad("BR"," ","<vide>","<vide>");
+                // sprintf(i,"%d",qc); 
+                // mise_jr_quad(deb_else,2,i);
               }
 ;
 
-R3_1_CONTROLE: kwIF EXPRESSION 
+R3_1_CONTROLE: kwIF EXPRESSION_ITEM 
               {
-                diviserChaine($2,partie1_1,partie1_2);
-                if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"/")!=0){
-                  printf("\nFile '%s', line %d, character %d: semantic error : Unexpected expression type.\n",file_name,nb_line,nb_character);
-                  YYABORT;
-                }
-                deb_else=qc;
-                fin_if=qc;
-                remplir_quad("BNZ"," ",partie1_2,"<vide>");
+                // diviserChaine($2,partie1_1,partie1_2);
+                // if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"/")!=0){
+                //   printf("\nFile '%s', line %d, character %d: semantic error : Unexpected expression type.\n",file_name,nb_line,nb_character);
+                //   YYABORT;
+                // }
+                // deb_else=qc;
+                // fin_if=qc;
+                // remplir_quad("BNZ"," ",partie1_2,"<vide>");
                 
               }
 ;
 
-R4_2_CONTROLE: R3_1_CONTROLE acco INSTRUCTION_LIST 
+R4_2_CONTROLE: R3_1_CONTROLE acco INSTRUCTION_LIST accf
               {
-                fin_if=qc;
-                remplir_quad("BR"," ","<vide>","<vide>");
-                sprintf(i,"%d",qc); 
-                mise_jr_quad(deb_else,2,i);
+                // fin_if=qc;
+                // remplir_quad("BR"," ","<vide>","<vide>");
+                // sprintf(i,"%d",qc); 
+                // mise_jr_quad(deb_else,2,i);
               }
 ;
 
-CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST accf 
-              {
-                sprintf(i,"%d",qc);
-                mise_jr_quad(fin_if,2,i);
-              }
-        | R2_1_CONTROLE acco INSTRUCTION_LIST accf 
-              {
-                sprintf(i,"%d",qc);
-                mise_jr_quad(fin_if,2,i);
-              }
-        | R3_1_CONTROLE acco INSTRUCTION_LIST accf 
-              {
-                sprintf(i,"%d",qc);
-                mise_jr_quad(fin_if,2,i);
-              }
-        | R4_2_CONTROLE kwELSE INSTRUCTION_LIST accf 
-              {
-                sprintf(i,"%d",qc);
-                mise_jr_quad(fin_if,2,i);
-              }
-;
-
-CONDITION: po EXPRESSION pt OPCOMP pt EXPRESSION pf
-              { 
-                diviserChaine($2,partie1_1,partie1_2);
-                diviserChaine($6,partie2_1,partie2_2);
-                sprintf(temp,"T%d",tmp);
-                if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0) {
-                  if(!((strcmp(partie1_1,"REAL")==0 && strcmp(partie2_1,"INTEGER")==0) || (strcmp(partie2_1,"REAL")==0 && strcmp(partie1_1,"INTEGER")==0))){
-                    printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                    YYABORT;
+IF_ELSE_BLOCK: R1_2_CONTROLE kwELSE acco INSTRUCTION_LIST accf 
+                  {
+                    // sprintf(i,"%d",qc);
+                    // mise_jr_quad(fin_if,2,i);
                   }
-                }
-                $$=strdup(temp);
-                remplir_quad($4,partie1_2,partie2_2,temp);
-                tmp++;
+            | R2_1_CONTROLE acco INSTRUCTION_LIST accf 
+                  {
+                    // sprintf(i,"%d",qc);
+                    // mise_jr_quad(fin_if,2,i);
+                  }
+            | R3_1_CONTROLE acco INSTRUCTION_LIST accf 
+                  {
+                    // sprintf(i,"%d",qc);
+                    // mise_jr_quad(fin_if,2,i);
+                  }
+            | R4_2_CONTROLE kwELSE acco INSTRUCTION_LIST accf 
+                  {
+                    // sprintf(i,"%d",qc);
+                    // mise_jr_quad(fin_if,2,i);
+                  }
+;
+
+CONDITION: po EXPRESSION_ITEM COMPARISON_OPERATOR EXPRESSION_ITEM pf
+              { 
+                // diviserChaine($2,partie1_1,partie1_2);
+                // diviserChaine($6,partie2_1,partie2_2);
+                // sprintf(temp,"T%d",tmp);
+                // if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0) {
+                //   if(!((strcmp(partie1_1,"REAL")==0 && strcmp(partie2_1,"INTEGER")==0) || (strcmp(partie2_1,"REAL")==0 && strcmp(partie1_1,"INTEGER")==0))){
+                //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                //     YYABORT;
+                //   }
+                // }
+                // $$=strdup(temp);
+                // remplir_quad($4,partie1_2,partie2_2,temp);
+                // tmp++;
               }
-         | po CONDITION pt OPLOG pt CONDITION pf
+         | po CONDITION LOGICAL_OPERATOR CONDITION pf
               {
-                sprintf(temp,"T%d",tmp);
-                $$=strdup(temp);
-                remplir_quad($4,$2,$6,temp);
-                tmp++;
+                // sprintf(temp,"T%d",tmp);
+                // $$=strdup(temp);
+                // remplir_quad($4,$2,$6,temp);
+                // tmp++;
               }
          | po CONDITION pf
               {
@@ -862,19 +952,60 @@ CONDITION: po EXPRESSION pt OPCOMP pt EXPRESSION pf
               }
 ;               
 
-OPLOG: opAND {$$=strdup($1);}
-     | opOR  {$$=strdup($1);}
+LOGICAL_OPERATOR: opAND {$$=strdup($1);}
+                | opOR  {$$=strdup($1);}
 ;
 
-OPCOMP: opGT {$$=strdup($1);}
-      | opGE {$$=strdup($1);} 
-      | opEQ {$$=strdup($1);}
-      | opLE {$$=strdup($1);}
-      | opLT {$$=strdup($1);}
-      | opNE {$$=strdup($1);}
+COMPARISON_OPERATOR: opGT {$$=strdup($1);}
+                   | opGE {$$=strdup($1);} 
+                   | opEQ {$$=strdup($1);}
+                   | opLE {$$=strdup($1);}
+                   | opLT {$$=strdup($1);}
+                   | opNE {$$=strdup($1);}
 ;
 
-RETURN: kwRETURN EXPRESSION 
+/* LOOP_BLOCK: FOR_LOOP
+          | WHILE_LOOP
+          | DOWHILE_LOOP
+;
+
+FOR_LOOP:
+;
+
+WHILE_LOOP:
+;
+
+DOWHILE_LOOP:
+; */
+
+SWITCH_CASE_BLOCK: kwSWITCH po IDF pf acco CASE_LIST OPTIONAL_DEFAULT accf
+;
+
+CASE_LIST: kwCASE EXPRESSION_ITEM dp INSTRUCTION_LIST kwBREAK pvg CASE_LIST
+         | kwCASE EXPRESSION_ITEM dp INSTRUCTION_LIST kwBREAK pvg
+;
+
+OPTIONAL_DEFAULT: kwDEFAULT dp INSTRUCTION_LIST
+                |
+;
+
+TRY_CATCH_BLOCK: kwTRY acco INSTRUCTION_LIST accf CATCH_LIST OPTIONAL_FINALLY
+;
+
+CATCH_LIST: kwCATCH po CATCH_PARAMETER pf acco INSTRUCTION_LIST accf CATCH_LIST
+          |
+;
+
+CATCH_PARAMETER: IDF
+               | kwEXCEPTION IDF
+               |
+;
+
+OPTIONAL_FINALLY: kwFINALLY acco INSTRUCTION_LIST accf
+                |
+;
+
+RETURN: kwRETURN EXPRESSION_ITEM 
 ;
 
 /* COMPIL: PROC MAIN {printf("\n\nCode correct!\n\n"); YYACCEPT;}
@@ -928,7 +1059,7 @@ RETURN: kwRETURN EXPRESSION
         | SORTIE      INSTSPROC 
         | AFFECTATION INSTSPROC   
         | CALLPROC    INSTSPROC     {param=0;}
-        | CONTROLE    INSTSPROCBLOC
+        | IF_ELSE_BLOCK    INSTSPROCBLOC
         | BOUCLE      INSTSPROCBLOC
         | RETOUR
 ; */
@@ -937,7 +1068,7 @@ RETURN: kwRETURN EXPRESSION
          | pvg ENTREE       INSTSPROC
          | pvg SORTIE       INSTSPROC
          | pvg AFFECTATION  INSTSPROC
-         | pvg CONTROLE     INSTSPROCBLOC
+         | pvg IF_ELSE_BLOCK     INSTSPROCBLOC
          | pvg BOUCLE       INSTSPROCBLOC
          | pvg CALLPROC     INSTSPROC     {param=0;}
          | pvg RETOUR
@@ -947,13 +1078,13 @@ RETURN: kwRETURN EXPRESSION
              | ENTREE       INSTSPROC
              | SORTIE       INSTSPROC
              | AFFECTATION  INSTSPROC
-             | CONTROLE     INSTSPROCBLOC
+             | IF_ELSE_BLOCK     INSTSPROCBLOC
              | BOUCLE       INSTSPROCBLOC
              | CALLPROC     INSTSPROC     {param=0;}
              | RETOUR
 ; */
 
-/* RETOUR: idf aff EXPRESSION  
+/* RETOUR: idf aff EXPRESSION_ITEM  
             { 
               diviserChaine($3,partie1_1,partie1_2);
               if (!idf_existe($1,emp,"Fonction")) {
@@ -999,7 +1130,7 @@ RETURN: kwRETURN EXPRESSION
                   miseajour($2,"Variable",$1,"-1","/","/","/",empla,"SYNTAXIQUE");
                 }
               }
-       | TYPE idf aff EXPRESSION LISTVAR pvg 
+       | TYPE idf aff EXPRESSION_ITEM LISTVAR pvg 
               { 
                 diviserChaine($4,partie1_1,partie1_2);
                 if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
@@ -1033,7 +1164,7 @@ RETURN: kwRETURN EXPRESSION
                   miseajour($2,"Variable",$1,"-1",$3,"/","/",empla,"SYNTAXIQUE");
                 }
               } 
-       | kwCHARACTER idf MULCHAR aff EXPRESSION LISTVARSOLOCHAR pvg 
+       | kwCHARACTER idf MULCHAR aff EXPRESSION_ITEM LISTVARSOLOCHAR pvg 
               {
                 diviserChaine($5,partie1_1,partie1_2);
                 if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
@@ -1172,7 +1303,7 @@ RETURN: kwRETURN EXPRESSION
                       miseajour($2,"Variable",savet,"-1","/","/","/",empla,"SYNTAXIQUE");
                     }
                   }
-           | vg idf aff EXPRESSION LISTVAR 
+           | vg idf aff EXPRESSION_ITEM LISTVAR 
                   { 
                     diviserChaine($4,partie1_1,partie1_2);
                     if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
@@ -1214,7 +1345,7 @@ RETURN: kwRETURN EXPRESSION
                       miseajour($2,"Variable","CHARACTER","-1",$3,"/","/",empla,"SYNTAXIQUE");
                     }
                   } 
-               | vg idf MULCHAR aff EXPRESSION LISTVARSOLOCHAR 
+               | vg idf MULCHAR aff EXPRESSION_ITEM LISTVARSOLOCHAR 
                   { 
                     diviserChaine($5,partie1_1,partie1_2);
                     if (emp==0)
@@ -1339,12 +1470,12 @@ RETURN: kwRETURN EXPRESSION
      | ENTREE      pvg 
      | SORTIE      pvg 
      | AFFECTATION pvg 
-     | CONTROLE        
+     | IF_ELSE_BLOCK        
      | BOUCLE     
      | CALLPROC    pvg   {param=0;}
 ;  */
 
-/* AFFECTATION: idf aff EXPRESSION  
+/* AFFECTATION: idf aff EXPRESSION_ITEM  
                   { 
                     if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
@@ -1367,7 +1498,7 @@ RETURN: kwRETURN EXPRESSION
                     remplir_quad("=",partie1_2,"<vide>",$1);
                     miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
                   }
-           | idf po INDEX pf aff EXPRESSION
+           | idf po INDEX pf aff EXPRESSION_ITEM
                   { 
                     diviserChaine($6,partie1_1,partie1_2);
                     if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
@@ -1392,7 +1523,7 @@ RETURN: kwRETURN EXPRESSION
                     miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
                     strcpy(tab," ");
                   }   
-           | idf po INDEX vg INDEX pf aff EXPRESSION
+           | idf po INDEX vg INDEX pf aff EXPRESSION_ITEM
                   { 
                     diviserChaine($8,partie1_1,partie1_2);
                     if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
@@ -1419,7 +1550,7 @@ RETURN: kwRETURN EXPRESSION
                   }  
 ; */
  
-/* EXPRESSION: EXPRESSION plus EXPRESSION
+/* EXPRESSION_ITEM: EXPRESSION_ITEM plus EXPRESSION_ITEM
                   { 
                     diviserChaine($1,partie1_1,partie1_2);
                     diviserChaine($3,partie2_1,partie2_2);
@@ -1441,7 +1572,7 @@ RETURN: kwRETURN EXPRESSION
                     remplir_quad("+",partie1_2,partie2_2,temp);
                     tmp++;
                   }  
-          | EXPRESSION minus EXPRESSION
+          | EXPRESSION_ITEM minus EXPRESSION_ITEM
                   { 
                     diviserChaine($1,partie1_1,partie1_2);
                     diviserChaine($3,partie2_1,partie2_2);
@@ -1463,7 +1594,7 @@ RETURN: kwRETURN EXPRESSION
                     remplir_quad("-",partie1_2,partie2_2,temp);
                     tmp++;
                   }  
-          | EXPRESSION mul EXPRESSION
+          | EXPRESSION_ITEM mul EXPRESSION_ITEM
                   { 
                     diviserChaine($1,partie1_1,partie1_2);
                     diviserChaine($3,partie2_1,partie2_2);
@@ -1485,7 +1616,7 @@ RETURN: kwRETURN EXPRESSION
                     remplir_quad("*",partie1_2,partie2_2,temp);
                     tmp++;
                   }  
-          | EXPRESSION divi EXPRESSION 
+          | EXPRESSION_ITEM divi EXPRESSION_ITEM 
                   {  
                     diviserChaine($1,partie1_1,partie1_2);
                     diviserChaine($3,partie2_1,partie2_2);
@@ -1579,7 +1710,7 @@ RETURN: kwRETURN EXPRESSION
                 strcat(cat,$1);
                 $$=strdup(cat);
               }                 
-          | po EXPRESSION pf  
+          | po EXPRESSION_ITEM pf  
               {
                 $$=strdup($2);
               }        
@@ -1630,7 +1761,7 @@ R1_2_CONTROLE: R2_1_CONTROLE kwTHEN INSTRUCTION_LIST
               }
 ;
 
-R3_1_CONTROLE: kwIF EXPRESSION 
+R3_1_CONTROLE: kwIF EXPRESSION_ITEM 
               {
                 diviserChaine($2,partie1_1,partie1_2);
                 if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"/")!=0){
@@ -1653,7 +1784,7 @@ R4_2_CONTROLE: R3_1_CONTROLE kwTHEN INSTRUCTION_LIST
               }
 ;
 
-CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF 
+IF_ELSE_BLOCK: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF 
               {
                 sprintf(i,"%d",qc);
                 mise_jr_quad(fin_if,2,i);
@@ -1675,7 +1806,7 @@ CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF
               }
 ; */
 
-/* CONDITION: po EXPRESSION pt OPCOMP pt EXPRESSION pf
+/* CONDITION: po EXPRESSION_ITEM pt COMPARISON_OPERATOR pt EXPRESSION_ITEM pf
               { 
                 diviserChaine($2,partie1_1,partie1_2);
                 diviserChaine($6,partie2_1,partie2_2);
@@ -1690,7 +1821,7 @@ CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF
                 remplir_quad($4,partie1_2,partie2_2,temp);
                 tmp++;
               }
-         | po CONDITION pt OPLOG pt CONDITION pf
+         | po CONDITION pt LOGICAL_OPERATOR pt CONDITION pf
               {
                 sprintf(temp,"T%d",tmp);
                 $$=strdup(temp);
@@ -1703,11 +1834,11 @@ CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF
               }
 ;                */
 
-/* OPLOG: kwAND {$$=strdup($1);}
+/* LOGICAL_OPERATOR: kwAND {$$=strdup($1);}
      | kwOR  {$$=strdup($1);}
 ; */
 
-/* OPCOMP: kwGT {$$=strdup($1);}
+/* COMPARISON_OPERATOR: kwGT {$$=strdup($1);}
       | kwGE {$$=strdup($1);} 
       | kwEQ {$$=strdup($1);}
       | kwLE {$$=strdup($1);}
@@ -1723,7 +1854,7 @@ CONTROLE: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF
                 }
 ;
 
-R2_1_BOUCLE: kwDOWHILE EXPRESSION
+R2_1_BOUCLE: kwDOWHILE EXPRESSION_ITEM
                 {
                   diviserChaine($2,partie1_1,partie1_2);
                   fin_dowhile=qc;
@@ -1773,7 +1904,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                 }
 ; */
 
-/* SORTIE: kwWRITE po MESSAGE pf 
+/* SORTIE: kwWRITE po STRING_MESSAGE pf 
           {
             search($3,"Idf","CHARACTER","/","-1","/","/","/",3);
           }
@@ -1783,7 +1914,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
           }
 ;  */
 
-/* MESSAGE: character MESSAGEIDF
+/* STRING_MESSAGE: character MESSAGE_CONCATENATION
           {
             strcat(tab,$1);strcat(tab,$2);
             $$=strdup(tab);
@@ -1793,7 +1924,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
           {
             $$=strdup($1);
           }
-       | MEMBREIDF vg MESSAGE
+       | MEMBREIDF vg STRING_MESSAGE
           {
             strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);
             $$=strdup(tab);
@@ -1801,7 +1932,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
           }
 ; */
 
-/* MESSAGEIDF: vg MEMBREIDF vg MESSAGE
+/* MESSAGE_CONCATENATION: vg MEMBREIDF vg STRING_MESSAGE
               {
                 strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);
                 $$=strdup(tab);
@@ -1862,7 +1993,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
 %%
 
 int yyerror(char *msg) { 
-  printf("\nFile '%s', syntax error, line %d, column %d, entity %s. \n",file_name,nb_line,nb_character,yylval.str);
+  printf("\nFile '%s', syntax error, line %d, column %d, entity '%s' \n",file_name,nb_line,nb_character,yylval.str);
   return 1; 
 }
 
