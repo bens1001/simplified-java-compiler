@@ -21,9 +21,9 @@ class Person {
         System.out.println("Gender: " + gender);
         System.out.println("Student: " + isStudent);
         System.out.print("Grades: ");
-        // for (int grade : grades) {
-        //     System.out.print(grade + " ");
-        // }
+        for (int grade : grades) {
+            System.out.print(grade + " ");
+        }
         System.out.println();
     }
 
@@ -38,12 +38,12 @@ class Person {
 
     // Méthode qui retourne la moyenne des notes
     double getAverageGrade() {
-        if (grades.length == 0) {return 0;} // Eviter la division par zéro
+        if (grades.length == 0) return 0; // Eviter la division par zéro
         int sum = 0;
-        // for (int grade : grades) {
-        //     sum += grade;
-        // }
-        return sum / grades.length;
+        for (int grade : grades) {
+            sum += grade;
+        }
+        return (double) sum / grades.length;
     }
 }
 
@@ -74,10 +74,10 @@ class Main {
 
         // Boucle while
         int i = 0;
-        // while (i < 3) {
-        //     System.out.println("Iteration: " + i);
-        //     i++;
-        // }
+        while (i < 3) {
+            System.out.println("Iteration: " + i);
+            i++;
+        }
 
         // Gestion des exceptions avec le type d'exception précisé
         try {
