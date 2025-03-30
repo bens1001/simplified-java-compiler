@@ -43,7 +43,7 @@ char tab[20];
 %type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH
 ;
 
-%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
+%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE kwFOR BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
 ;
 
 %start JAVA
@@ -440,8 +440,9 @@ INSTRUCTION_LIST: INSTRUCTION_ITEM INSTRUCTION_LIST
 INSTRUCTION_ITEM: OUTPUT    pvg 
                 | DECLARATION pvg
                 | ASSIGN    pvg 
+                | INCREMENT pvg
                 | IF_ELSE_BLOCK        
-                /* | LOOP_BLOCK     */
+                | LOOP_BLOCK     
                 | SWITCH_CASE_BLOCK 
                 | TRY_CATCH_BLOCK
                 | OBJECT_ACCESS_METHOD  pvg   {param=0;}
@@ -862,6 +863,15 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
               }
 ;
 
+INCREMENT: IDF opADD opADD |
+           IDF opMINUS opMINUS |
+           opADD opADD IDF |
+           opMINUS opMINUS IDF |
+           IDF opADD opASSIGN EXPRESSION |
+           IDF opMINUS opASSIGN EXPRESSION |
+           IDF opMUL opASSIGN EXPRESSION 
+;
+
 R2_1_CONTROLE: kwIF CONDITION 
               {
                 // deb_else=qc;
@@ -964,19 +974,45 @@ COMPARISON_OPERATOR: opGT {$$=strdup($1);}
                    | opNE {$$=strdup($1);}
 ;
 
-/* LOOP_BLOCK: FOR_LOOP
+LOOP_BLOCK: FOR_LOOP
           | WHILE_LOOP
           | DOWHILE_LOOP
 ;
 
-FOR_LOOP:
+FOR_LOOP: kwFOR FOR_SIGNATURE acco INSTRUCTION_LIST accf
+          {
+            // remplir_quad("BR"," ","<vide>","<vide>");
+            // sprintf(i,"%d",qc); 
+            // mise_jr_quad($2,2,i);
+          }
+;
+TYPEfor:  kwINT
+        | kwFLOAT
+        | kwDOUBLE
+        | kwCHAR
+; 
+
+INIT : TYPEfor IDF |
+       TYPEfor IDF opASSIGN EXPRESSION |
+
+FOR_SIGNATURE:  po TYPEfor IDF dp IDF pf |
+                po INIT pvg EXPRESSION COMPARISON_OPERATOR EXPRESSION_ITEM pvg INCREMENT pf
+ ;
+
+
+R1_1_WHILE: kwWHILE CONDITION 
 ;
 
-WHILE_LOOP:
+R2_1_WHILE: kwWHILE EXPRESSION
 ;
 
-DOWHILE_LOOP:
-; */
+WHILE_LOOP: R1_1_WHILE acco INSTRUCTION_LIST accf |
+            R2_1_WHILE  acco INSTRUCTION_LIST accf
+;
+
+DOWHILE_LOOP: kwDO acco INSTRUCTION_LIST accf kwWHILE R1_1_WHILE |
+              kwDO acco INSTRUCTION_LIST accf kwWHILE R2_1_WHILE
+; 
 
 SWITCH_CASE_BLOCK: kwSWITCH po IDF pf acco CASE_LIST OPTIONAL_DEFAULT accf
 ;
@@ -2009,4 +2045,3 @@ int main(int argc,char *argv[]){
 int yywrap(){
   return 0;
 }
-

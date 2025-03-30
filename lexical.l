@@ -1,3 +1,4 @@
+
 %{
 	#include "syntaxique.tab.h"
 	#include <stdio.h>
@@ -218,7 +219,7 @@ exception {letter}*"Exception"
 	return kwTRY;
 }
 "void" {
-	ECHO; 
+	ECHO;
 	nb_character += strlen(yytext);
 	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
@@ -230,6 +231,13 @@ exception {letter}*"Exception"
 	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwWHILE;
+}
+"for" {
+	ECHO; 
+	nb_character += strlen(yytext);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
+	yylval.str=strdup(yytext);
+	return kwFOR;
 }
 {exception} {
 	ECHO;
@@ -501,4 +509,3 @@ exception {letter}*"Exception"
 	nb_character += strlen(yytext);
 	printf("\nFile '%s', lexical error, line %d, column %d, entity '%s' \n",file_name,nb_line,nb_character,yytext);
 }
-
