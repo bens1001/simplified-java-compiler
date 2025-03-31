@@ -4,3 +4,5 @@ syntaxique.tab.c
 syntaxique.tab.h
 projet.exe
 syntaxique.output
+syntaxique.dot
+dot2json.py

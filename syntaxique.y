@@ -43,7 +43,7 @@ char tab[20];
 %type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH
 ;
 
-%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE kwFOR BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
+%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
 ;
 
 %start JAVA
@@ -59,6 +59,8 @@ char tab[20];
 %%
 JAVA: IMPORT_LIST CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
 ;
+
+// ------------------------------- PACKAGE IMPORT BLOCK -------------------------------------------------------------------------
 
 IMPORT_LIST: IMPORT_LIST IMPORT_ITEM
            |
@@ -76,12 +78,16 @@ IMPORT_PATH: IDF { $$ = strdup($1); }
                }
 ;
 
+// ------------------------------ MAIN CLASS BLOCK ---------------------------------------------------------------------------
+
 MAIN_CLASS: kwCLASS kwMAIN acco MAIN_METHOD accf { emp = 0; }
           |
 ;
 
 MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf 
 ;
+
+// ------------------------------ CLASS BLOCK ----------------------------------------------------------------------------------
 
 CLASS_LIST: CLASS_LIST CLASS
           | 
@@ -90,12 +96,10 @@ CLASS_LIST: CLASS_LIST CLASS
 CLASS: kwCLASS IDF acco ENTITY_LIST accf 
 ;
 
-ENTITY_LIST: ENTITY_LIST_NONEMPTY
-           | CONSTRUCTOR
-           |
-;
+// ---------------------------- ENTITY BLOCK (ATTRIBUTES AND METHODS) ---------------------------------------------------------
 
-CONSTRUCTOR: IDF po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
+ENTITY_LIST: ENTITY_LIST_NONEMPTY
+           |
 ;
 
 ENTITY_LIST_NONEMPTY: ENTITY_ITEM
@@ -109,6 +113,8 @@ ENTITY_ITEM_SUFFIX: METHOD_SUFFIX
                   | VARIABLE_SUFFIX pvg
 ;
 
+// -------------------------- METHOD BLOCK ---------------------------------------------------------------------------------
+
 METHOD_SUFFIX: po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
 ;
 
@@ -120,8 +126,10 @@ METHOD_PARAMETER_ITEM: vg TYPE IDF METHOD_PARAMETER_ITEM
                      |
 ;
 
+// ----------------------------- TYPE BLOCK -----------------------------------------------------------------------------------
+
 TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION
-    | IDF OPTIONAL_MULTIDIMENSION
+    | TYPE_NAME OPTIONAL_MULTIDIMENSION
 ;
 
 BASE_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
@@ -132,11 +140,19 @@ BASE_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
          | kwVOID    {$$=strdup($1);strcpy(savet,$1);}
 ;
 
+TYPE_NAME: IDF
+;
+
+// ------------------------------ OPTIONAL BLOCK ------------------------------------------------------------------------------
+
 OPTIONAL_MULTIDIMENSION: dimo INDEX dimf OPTIONAL_MULTIDIMENSION
                        | dimo dimf OPTIONAL_MULTIDIMENSION
                        |
 ;
 
+OPTIONAL_ASSIGN: opASSIGN EXPRESSION
+               | 
+;
 
 INDEX: EXPRESSION_ITEM 
         { 
@@ -164,9 +180,7 @@ INDEX: EXPRESSION_ITEM
         }
 ;
 
-OPTIONAL_ASSIGN: opASSIGN EXPRESSION
-               | 
-;
+// ------------------------------ ATTRIBUTE BLOCK ---------------------------------------------------------------------------
 
 VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST 
               { 
@@ -433,6 +447,8 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
             |
 ;
 
+// ------------------------------ INSTRUCTION BLOCK ---------------------------------------------------------------------------
+
 INSTRUCTION_LIST: INSTRUCTION_ITEM INSTRUCTION_LIST
                 | INSTRUCTION_ITEM
 ;
@@ -449,8 +465,12 @@ INSTRUCTION_ITEM: OUTPUT    pvg
                 | RETURN    pvg
 ; 
 
+// ------------------------------ DECLARATION BLOCK -------------------------------------------------------------------------------
+
 DECLARATION: TYPE IDF VARIABLE_SUFFIX
 ;
+
+// ------------------------------ PRINT BLOCK -------------------------------------------------------------------------------------
 
 OUTPUT: PRINT po STRING_MESSAGE pf 
           {
@@ -523,6 +543,8 @@ VARIABLE_MESSAGE : OBJECT_ACCESS
                   // $$=strdup($1);
                 }
 ;
+
+// ------------------------------ ASSIGN BLOCK -------------------------------------------------------------------------------------
 
 ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM  
                   { 
@@ -599,10 +621,14 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
                   }
 ;
 
+// ------------------------------ EXPRESSION BLOCK -----------------------------------------------------------------------------------
+
 EXPRESSION: EXPRESSION_ITEM
           | ARRAY_INSTANCE
           | OBJECT_CREATION
 ;
+
+// ------------------------------ ARRAY BLOCK ---------------------------------------------------------------------------------------
 
 ARRAY_INSTANCE: acco SUBARRAY_LIST accf
 ;
@@ -615,6 +641,7 @@ SUBARRAY_ITEM: EXPRESSION_ITEM
              | ARRAY_INSTANCE
 ;
 
+// ------------------------------ OBJECT BLOCK --------------------------------------------------------------------------------------
 
 OBJECT_CREATION: kwNEW IDF po ARGUMENT_LIST pf
 ;
@@ -654,6 +681,8 @@ OBJECT_ACCESS_METHOD: IDF pt IDF po ARGUMENT_LIST pf
                   }
 ;
 
+// ------------------------------ ARGUMENT BLOCK ------------------------------------------------------------------------------------
+
 ARGUMENT_LIST: ARGUMENTS 
              | 
 ;
@@ -668,6 +697,8 @@ ARGUMENTS:
          // param++
       }
 ;
+
+// ------------------------------ EXPRESSION ITEM BLOCK ----------------------------------------------------------------------------
 
 EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                   { 
@@ -863,6 +894,8 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
               }
 ;
 
+// --------------------------------- INCREMENT AND DECREMENT BLOCK ---------------------------------------------------------------------------
+
 INCREMENT: IDF opADD opADD |
            IDF opMINUS opMINUS |
            opADD opADD IDF |
@@ -871,6 +904,50 @@ INCREMENT: IDF opADD opADD |
            IDF opMINUS opASSIGN EXPRESSION |
            IDF opMUL opASSIGN EXPRESSION 
 ;
+
+// --------------------------------- CONDITION BLOCK ---------------------------------------------------------------------------
+
+CONDITION: po EXPRESSION_ITEM COMPARISON_OPERATOR EXPRESSION_ITEM pf
+              { 
+                // diviserChaine($2,partie1_1,partie1_2);
+                // diviserChaine($6,partie2_1,partie2_2);
+                // sprintf(temp,"T%d",tmp);
+                // if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0) {
+                //   if(!((strcmp(partie1_1,"REAL")==0 && strcmp(partie2_1,"INTEGER")==0) || (strcmp(partie2_1,"REAL")==0 && strcmp(partie1_1,"INTEGER")==0))){
+                //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                //     YYABORT;
+                //   }
+                // }
+                // $$=strdup(temp);
+                // remplir_quad($4,partie1_2,partie2_2,temp);
+                // tmp++;
+              }
+         | po CONDITION LOGICAL_OPERATOR CONDITION pf
+              {
+                // sprintf(temp,"T%d",tmp);
+                // $$=strdup(temp);
+                // remplir_quad($4,$2,$6,temp);
+                // tmp++;
+              }
+         | po CONDITION pf
+              {
+                $$=strdup($2);
+              }
+;               
+
+LOGICAL_OPERATOR: opAND {$$=strdup($1);}
+                | opOR  {$$=strdup($1);}
+;
+
+COMPARISON_OPERATOR: opGT {$$=strdup($1);}
+                   | opGE {$$=strdup($1);} 
+                   | opEQ {$$=strdup($1);}
+                   | opLE {$$=strdup($1);}
+                   | opLT {$$=strdup($1);}
+                   | opNE {$$=strdup($1);}
+;
+
+// --------------------------------- IF/ELSE BLOCK ---------------------------------------------------------------------------
 
 R2_1_CONTROLE: kwIF CONDITION 
               {
@@ -934,50 +1011,14 @@ IF_ELSE_BLOCK: R1_2_CONTROLE kwELSE acco INSTRUCTION_LIST accf
                   }
 ;
 
-CONDITION: po EXPRESSION_ITEM COMPARISON_OPERATOR EXPRESSION_ITEM pf
-              { 
-                // diviserChaine($2,partie1_1,partie1_2);
-                // diviserChaine($6,partie2_1,partie2_2);
-                // sprintf(temp,"T%d",tmp);
-                // if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0) {
-                //   if(!((strcmp(partie1_1,"REAL")==0 && strcmp(partie2_1,"INTEGER")==0) || (strcmp(partie2_1,"REAL")==0 && strcmp(partie1_1,"INTEGER")==0))){
-                //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                //     YYABORT;
-                //   }
-                // }
-                // $$=strdup(temp);
-                // remplir_quad($4,partie1_2,partie2_2,temp);
-                // tmp++;
-              }
-         | po CONDITION LOGICAL_OPERATOR CONDITION pf
-              {
-                // sprintf(temp,"T%d",tmp);
-                // $$=strdup(temp);
-                // remplir_quad($4,$2,$6,temp);
-                // tmp++;
-              }
-         | po CONDITION pf
-              {
-                $$=strdup($2);
-              }
-;               
-
-LOGICAL_OPERATOR: opAND {$$=strdup($1);}
-                | opOR  {$$=strdup($1);}
-;
-
-COMPARISON_OPERATOR: opGT {$$=strdup($1);}
-                   | opGE {$$=strdup($1);} 
-                   | opEQ {$$=strdup($1);}
-                   | opLE {$$=strdup($1);}
-                   | opLT {$$=strdup($1);}
-                   | opNE {$$=strdup($1);}
-;
+// --------------------------------- LOOP BLOCK -----------------------------------------------------------------------------------
 
 LOOP_BLOCK: FOR_LOOP
           | WHILE_LOOP
           | DOWHILE_LOOP
 ;
+
+// --------------------------------- FOR LOOP BLOCK -----------------------------------------------------------------------------------
 
 FOR_LOOP: kwFOR FOR_SIGNATURE acco INSTRUCTION_LIST accf
           {
@@ -999,7 +1040,7 @@ FOR_SIGNATURE:  po TYPEfor IDF dp IDF pf |
                 po INIT pvg EXPRESSION COMPARISON_OPERATOR EXPRESSION_ITEM pvg INCREMENT pf
  ;
 
-
+// --------------------------------- WHILE LOOP BLOCK -----------------------------------------------------------------------------------
 R1_1_WHILE: kwWHILE CONDITION 
 ;
 
@@ -1010,9 +1051,13 @@ WHILE_LOOP: R1_1_WHILE acco INSTRUCTION_LIST accf |
             R2_1_WHILE  acco INSTRUCTION_LIST accf
 ;
 
+// --------------------------------- DO WHILE LOOP BLOCK -----------------------------------------------------------------------------------
+
 DOWHILE_LOOP: kwDO acco INSTRUCTION_LIST accf kwWHILE R1_1_WHILE |
               kwDO acco INSTRUCTION_LIST accf kwWHILE R2_1_WHILE
 ; 
+
+// --------------------------------- SWITCH CASE BLOCK -----------------------------------------------------------------------------------
 
 SWITCH_CASE_BLOCK: kwSWITCH po IDF pf acco CASE_LIST OPTIONAL_DEFAULT accf
 ;
@@ -1024,6 +1069,8 @@ CASE_LIST: kwCASE EXPRESSION_ITEM dp INSTRUCTION_LIST kwBREAK pvg CASE_LIST
 OPTIONAL_DEFAULT: kwDEFAULT dp INSTRUCTION_LIST
                 |
 ;
+
+// --------------------------------- TRY CATCH BLOCK -----------------------------------------------------------------------------------
 
 TRY_CATCH_BLOCK: kwTRY acco INSTRUCTION_LIST accf CATCH_LIST OPTIONAL_FINALLY
 ;
@@ -1040,6 +1087,8 @@ CATCH_PARAMETER: IDF
 OPTIONAL_FINALLY: kwFINALLY acco INSTRUCTION_LIST accf
                 |
 ;
+
+// --------------------------------- RETURN BLOCK -----------------------------------------------------------------------------------
 
 RETURN: kwRETURN EXPRESSION_ITEM 
 ;

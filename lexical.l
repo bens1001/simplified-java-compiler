@@ -120,6 +120,13 @@ exception {letter}*"Exception"
 	yylval.str=strdup(yytext);
 	return kwFLOAT;
 }
+"for" {
+	ECHO; 
+	nb_character += strlen(yytext);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
+	yylval.str=strdup(yytext);
+	return kwFOR;
+}
 "if" { 
 	ECHO;
 	nb_character += strlen(yytext);
@@ -231,13 +238,6 @@ exception {letter}*"Exception"
 	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwWHILE;
-}
-"for" {
-	ECHO; 
-	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
-	yylval.str=strdup(yytext);
-	return kwFOR;
 }
 {exception} {
 	ECHO;
