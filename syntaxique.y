@@ -10,7 +10,7 @@ int nb_character=0;
 char *file_name;
 char taille[20];
 char empla[20];
-int emp=1;
+int emp=0;
 char typeIDF[20];
 char savet[20];
 int param=0;
@@ -54,7 +54,7 @@ char tab[20];
 %left opGE opGT opEQ opLE opLT opNE
 %left opOR
 %left opAND 
-%left pt
+%left opNOT
 
 %%
 JAVA: IMPORT_LIST CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
@@ -80,7 +80,7 @@ IMPORT_PATH: IDF { $$ = strdup($1); }
 
 // ------------------------------ MAIN CLASS BLOCK ---------------------------------------------------------------------------
 
-MAIN_CLASS: kwCLASS kwMAIN acco MAIN_METHOD accf { emp = 0; }
+MAIN_CLASS: kwCLASS kwMAIN { emp = 0; } acco MAIN_METHOD accf 
           |
 ;
 
@@ -89,11 +89,11 @@ MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN po METHOD_PARAMETER_LIST pf acco IN
 
 // ------------------------------ CLASS BLOCK ----------------------------------------------------------------------------------
 
-CLASS_LIST: CLASS_LIST CLASS
+CLASS_LIST: CLASS_LIST CLASS 
           | 
 ;
 
-CLASS: kwCLASS IDF acco ENTITY_LIST accf 
+CLASS: kwCLASS IDF {emp++;} acco ENTITY_LIST accf 
 ;
 
 // ---------------------------- ENTITY BLOCK (ATTRIBUTES AND METHODS) ---------------------------------------------------------
@@ -107,6 +107,7 @@ ENTITY_LIST_NONEMPTY: ENTITY_ITEM
 ;
 
 ENTITY_ITEM: TYPE IDF ENTITY_ITEM_SUFFIX
+           | CONSTRUCTOR
 ;
 
 ENTITY_ITEM_SUFFIX: METHOD_SUFFIX
@@ -114,6 +115,8 @@ ENTITY_ITEM_SUFFIX: METHOD_SUFFIX
 ;
 
 // -------------------------- METHOD BLOCK ---------------------------------------------------------------------------------
+
+CONSTRUCTOR: IDF METHOD_SUFFIX
 
 METHOD_SUFFIX: po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
 ;
@@ -129,7 +132,7 @@ METHOD_PARAMETER_ITEM: vg TYPE IDF METHOD_PARAMETER_ITEM
 // ----------------------------- TYPE BLOCK -----------------------------------------------------------------------------------
 
 TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION
-    | TYPE_NAME OPTIONAL_MULTIDIMENSION
+    | OBJECT_TYPE 
 ;
 
 BASE_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
@@ -140,7 +143,71 @@ BASE_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
          | kwVOID    {$$=strdup($1);strcpy(savet,$1);}
 ;
 
-TYPE_NAME: IDF
+OBJECT_TYPE: IDF
+;
+
+// ------------------------------ OBJECT BLOCK --------------------------------------------------------------------------------------
+
+OBJECT_CREATION: kwNEW IDF po ARGUMENT_LIST pf
+;
+
+OBJECT_ACCESS: OBJECT_ACCESS_SEQUENCE
+             | kwTHIS pt OBJECT_ACCESS_SEQUENCE 
+;           
+
+OBJECT_ACCESS_SEQUENCE: OBJECT_ACCESS_SUFFIX
+                      | OBJECT_ACCESS_SEQUENCE pt OBJECT_ACCESS_SUFFIX
+;
+
+OBJECT_ACCESS_SUFFIX: OBJECT_TYPE 
+                    | OBJECT_ACCESS_METHOD
+;   
+
+OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
+                  { 
+                    // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
+                    //   YYABORT;
+                    // }
+                    // if (!idf_existe($4,-1,"Fonction")) {
+                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared function '%s'.\n",file_name,nb_line,nb_character,$4);
+                    //   YYABORT;
+                    // }
+                    // strcpy(typeIDF,getType($1,emp,"Variable"));
+                    // if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"/")!=0) {
+                    //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
+                    //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                    //     YYABORT;
+                    //   }
+                    // }
+                    // if(!verif_param($4,param)){
+                    //   printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
+                    //   YYABORT;
+                    // }
+                    // if (emp==0)
+                    //     search($4,"Idf","/","/","/","/","/","GLOBAL",3);
+                    //   else {
+                    //     sprintf(empla,"LOCAL %d",emp); 
+                    //     search($4,"Idf","/","/","/","/","/",empla,3);
+                    // }
+                  }
+;
+
+// ------------------------------ ARGUMENT BLOCK ------------------------------------------------------------------------------------
+
+ARGUMENT_LIST: ARGUMENTS 
+             | 
+;
+
+ARGUMENTS:
+      EXPRESSION_ITEM
+      { 
+        //  param++;
+      }
+    | ARGUMENTS vg EXPRESSION_ITEM
+      { 
+         // param++
+      }
 ;
 
 // ------------------------------ OPTIONAL BLOCK ------------------------------------------------------------------------------
@@ -461,7 +528,7 @@ INSTRUCTION_ITEM: OUTPUT    pvg
                 | LOOP_BLOCK     
                 | SWITCH_CASE_BLOCK 
                 | TRY_CATCH_BLOCK
-                | OBJECT_ACCESS_METHOD  pvg   {param=0;}
+                | OBJECT_ACCESS pvg   {param=0;}
                 | RETURN    pvg
 ; 
 
@@ -639,63 +706,6 @@ SUBARRAY_LIST: SUBARRAY_ITEM
 
 SUBARRAY_ITEM: EXPRESSION_ITEM
              | ARRAY_INSTANCE
-;
-
-// ------------------------------ OBJECT BLOCK --------------------------------------------------------------------------------------
-
-OBJECT_CREATION: kwNEW IDF po ARGUMENT_LIST pf
-;
-
-OBJECT_ACCESS: IDF pt IDF
-             | OBJECT_ACCESS_METHOD
-             | IDF
-;
-
-OBJECT_ACCESS_METHOD: IDF pt IDF po ARGUMENT_LIST pf
-                  { 
-                    // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
-                    //   YYABORT;
-                    // }
-                    // if (!idf_existe($4,-1,"Fonction")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared function '%s'.\n",file_name,nb_line,nb_character,$4);
-                    //   YYABORT;
-                    // }
-                    // strcpy(typeIDF,getType($1,emp,"Variable"));
-                    // if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"/")!=0) {
-                    //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // if(!verif_param($4,param)){
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
-                    //   YYABORT;
-                    // }
-                    // if (emp==0)
-                    //     search($4,"Idf","/","/","/","/","/","GLOBAL",3);
-                    //   else {
-                    //     sprintf(empla,"LOCAL %d",emp); 
-                    //     search($4,"Idf","/","/","/","/","/",empla,3);
-                    // }
-                  }
-;
-
-// ------------------------------ ARGUMENT BLOCK ------------------------------------------------------------------------------------
-
-ARGUMENT_LIST: ARGUMENTS 
-             | 
-;
-
-ARGUMENTS:
-      EXPRESSION_ITEM
-      { 
-        //  param++;
-      }
-    | ARGUMENTS vg EXPRESSION_ITEM
-      { 
-         // param++
-      }
 ;
 
 // ------------------------------ EXPRESSION ITEM BLOCK ----------------------------------------------------------------------------
@@ -896,13 +906,22 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
 
 // --------------------------------- INCREMENT AND DECREMENT BLOCK ---------------------------------------------------------------------------
 
-INCREMENT: IDF opADD opADD |
-           IDF opMINUS opMINUS |
-           opADD opADD IDF |
-           opMINUS opMINUS IDF |
-           IDF opADD opASSIGN EXPRESSION |
-           IDF opMINUS opASSIGN EXPRESSION |
-           IDF opMUL opASSIGN EXPRESSION 
+INCREMENT: POSTFIX_INCREMENT
+         /* | PREFIX_INCREMENT */
+         | INCREMENT_ASSIGN
+;
+
+POSTFIX_INCREMENT: OBJECT_ACCESS opADD opADD
+                 | OBJECT_ACCESS opMINUS opMINUS
+;
+
+/* PREFIX_INCREMENT: opADD opADD OBJECT_ACCESS
+                | opMINUS opMINUS OBJECT_ACCESS
+; */
+
+INCREMENT_ASSIGN : OBJECT_ACCESS opADD opASSIGN EXPRESSION_ITEM
+                 | OBJECT_ACCESS opMINUS opASSIGN EXPRESSION_ITEM
+                 | OBJECT_ACCESS opMUL opASSIGN EXPRESSION_ITEM
 ;
 
 // --------------------------------- CONDITION BLOCK ---------------------------------------------------------------------------
@@ -932,6 +951,13 @@ CONDITION: po EXPRESSION_ITEM COMPARISON_OPERATOR EXPRESSION_ITEM pf
          | po CONDITION pf
               {
                 $$=strdup($2);
+              }
+         | opNOT CONDITION 
+              {
+                // sprintf(temp,"T%d",tmp);
+                // $$=strdup(temp);
+                // remplir_quad("NOT",$2,"<vide>",temp);
+                // tmp++;
               }
 ;               
 
@@ -1020,25 +1046,26 @@ LOOP_BLOCK: FOR_LOOP
 
 // --------------------------------- FOR LOOP BLOCK -----------------------------------------------------------------------------------
 
-FOR_LOOP: kwFOR FOR_SIGNATURE acco INSTRUCTION_LIST accf
+FOR_LOOP: kwFOR FOR_LOOP_SIGNATURE acco INSTRUCTION_LIST accf
           {
             // remplir_quad("BR"," ","<vide>","<vide>");
             // sprintf(i,"%d",qc); 
             // mise_jr_quad($2,2,i);
           }
 ;
-TYPEfor:  kwINT
-        | kwFLOAT
-        | kwDOUBLE
-        | kwCHAR
+
+TYPEfor: kwINT
+       | kwFLOAT
+       | kwDOUBLE
+       | kwCHAR
 ; 
 
-INIT : TYPEfor IDF |
-       TYPEfor IDF opASSIGN EXPRESSION |
+INIT : TYPEfor IDF OPTIONAL_ASSIGN
+     |
 
-FOR_SIGNATURE:  po TYPEfor IDF dp IDF pf |
-                po INIT pvg EXPRESSION COMPARISON_OPERATOR EXPRESSION_ITEM pvg INCREMENT pf
- ;
+FOR_LOOP_SIGNATURE: po TYPEfor IDF dp IDF pf 
+                  | po INIT pvg CONDITION pvg INCREMENT pf
+;
 
 // --------------------------------- WHILE LOOP BLOCK -----------------------------------------------------------------------------------
 R1_1_WHILE: kwWHILE CONDITION 
