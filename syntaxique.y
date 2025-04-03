@@ -40,7 +40,7 @@ char tab[20];
     char* str;
 }
 
-%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE
+%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE
 ;
 
 %token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
@@ -93,7 +93,7 @@ CLASS_LIST: CLASS_LIST CLASS
           | 
 ;
 
-CLASS: kwCLASS IDF {emp++;} acco ENTITY_LIST accf 
+CLASS: kwCLASS {emp++;} IDF acco ENTITY_LIST accf 
 ;
 
 // ---------------------------- ENTITY BLOCK (ATTRIBUTES AND METHODS) ---------------------------------------------------------
@@ -117,11 +117,18 @@ ENTITY_ITEM_SUFFIX: METHOD_SUFFIX
 // -------------------------- METHOD BLOCK ---------------------------------------------------------------------------------
 
 CONSTRUCTOR: IDF METHOD_SUFFIX
+                {
+                    miseajour($1, "Fonction", "void", "-1", "-1","-1", "-1", emp==0?"GLOBAL":"LOCAL", "SYNTAXIQUE");
+                }
+;
 
 METHOD_SUFFIX: po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
 ;
 
 METHOD_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
+                        {
+                            miseajour($2, "Parameter", $1, "-1", "-1","-1", "-1", emp==0?"GLOBAL":"LOCAL", "SYNTAXIQUE");
+                        }
                      |
 ;
 
@@ -131,8 +138,8 @@ METHOD_PARAMETER_ITEM: vg TYPE IDF METHOD_PARAMETER_ITEM
 
 // ----------------------------- TYPE BLOCK -----------------------------------------------------------------------------------
 
-TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION
-    | OBJECT_TYPE 
+TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION {$$=strdup($1);}
+    | OBJECT_TYPE {$$=strdup($1);}
 ;
 
 BASE_TYPE: NUMERIC_TYPE {$$=strdup($1);}
@@ -146,7 +153,7 @@ NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
             | kwDOUBLE  {$$=strdup($1);strcpy(savet,$1);}
 ;
 
-OBJECT_TYPE: IDF
+OBJECT_TYPE: IDF {$$=strdup($1);}
 ;
 
 // ------------------------------ OBJECT BLOCK --------------------------------------------------------------------------------------
@@ -2144,6 +2151,7 @@ int main(int argc,char *argv[]){
   yyparse();
   afficher();
   affiche_quad();
+  liberer_table();
   return 0;
 }
 
