@@ -418,14 +418,14 @@ bool verif_param(char entite[], int nb_param)
 void afficher()
 {
     printf("/*************************Table des symboles IDF et constantes*************************/\n");
-    printf("_____________________________________________________________________________________________________________________________________________________________________________\n");
-    printf("\t|\t\t   Nom_Entite    \t\t| \tCode_Entite\t| Type_Entite |  Val_Entite  |  Taille  |  Lignes  | Colonnes |  Emplacement |  Last update |\n");
-    printf("_____________________________________________________________________________________________________________________________________________________________________________\n");
+    printf("_______________________________________________________________________________________________________________________________________________________________________________________\n");
+    printf("\t|\t\t   Nom_Entite    \t\t| \tCode_Entite\t|\tType_Entite\t|  Val_Entite  |  Taille  |  Lignes  | Colonnes |  Emplacement |  Last update |\n");
+    printf("_______________________________________________________________________________________________________________________________________________________________________________________\n");
 
     ElementNode *current = table.element_fifo_head;
     while (current != NULL)
     {
-        printf("\t| %45s |  %20s | %11s | %12s | %8s | %8s | %8s | %12s | %12s |\n",
+        printf("\t| %45s |  %20s | %20s | %12s | %8s | %8s | %8s | %12s | %12s |\n",
                current->name, current->code, current->type, current->val,
                current->taille, current->ligne, current->colonne,
                current->emplacement, current->update);
@@ -472,6 +472,20 @@ void diviserChaine(const char *chaine, char *partie1, char *partie2)
         strcpy(partie1, chaine);
         partie2[0] = '\0';
     }
+}
+
+char *stringify_emplacement(int current_class_level)
+{
+    char *class_emplacement = (char *)malloc(20 * sizeof(char));
+    if (current_class_level == 0)
+    {
+        strcpy(class_emplacement, "MAIN");
+    }
+    else
+    {
+        sprintf(class_emplacement, "CLASS %d", current_class_level);
+    }
+    return class_emplacement;
 }
 
 void liberer_table()

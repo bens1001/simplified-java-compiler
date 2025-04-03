@@ -10,7 +10,7 @@
 	int precision;
 	extern YYSTYPE yylval;
 	char x[20];
-	extern int emp;
+	extern int current_class_level;
 %}
 letter [a-zA-Z]
 number [0-9]
@@ -18,7 +18,7 @@ IDF {letter}({letter}|{number})*
 integer [-+]?{number}+
 real [-+]?{number}+"."{number}+
 string  (\"([^\"\n]+)\"|'([^'\n]+)')
-bool "TRUE"|"FALSE"
+bool "TRUE"|"FALSE"|"true"|"false"
 commentaire "\/\/"[^\n]*
 exception {letter}*"Exception"
 %%
@@ -250,7 +250,7 @@ exception {letter}*"Exception"
 {bool} {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"IDF","BOOLEAN","/","/","/","/","/",0);
+	search(yytext,"IDF","boolean","/","/","/","/","/",0);
 	yylval.str=strdup(yytext);
 	return BOOL;
 }
@@ -264,14 +264,14 @@ exception {letter}*"Exception"
     if (atof(yytext) >= -3.4e38 && atof(yytext) <= 3.4e38 && precision <= 7) {
         ECHO;
         nb_character += strlen(yytext);
-		search(yytext,"Constant","FLOAT","/","/","/","/","/",0);
+		search(yytext,"Constant","float","/","/","/","/","/",0);
         yylval.str = strdup(yytext);
         return FLOAT;
     }
     else if (atof(yytext) >= -1.7e308 && atof(yytext) <= 1.7e308 && precision <= 16) {
         ECHO;
         nb_character += strlen(yytext);
-		search(yytext,"Constant","DOUBLE","/","/","/","/","/",0);
+		search(yytext,"Constant","double","/","/","/","/","/",0);
         yylval.str = strdup(yytext);
         return DOUBLE;
     }
@@ -283,7 +283,7 @@ exception {letter}*"Exception"
 	if (atoi(yytext) >= -32768 && atoi(yytext) <= 32767) { 
 		ECHO;
 		nb_character += strlen(yytext);
-		search(yytext,"Constant","INTEGER","/","/","/","/","/",0);
+		search(yytext,"Constant","int","/","/","/","/","/",0);
 		yylval.str=strdup(yytext);
 		return INTEGER;
     } 
@@ -295,7 +295,7 @@ exception {letter}*"Exception"
 	ECHO;
 	nb_character += strlen(yytext);
 	sprintf(x,"%d",strlen(yytext)-2);
-	search(yytext,"IDF","STRING","/",x,"/","/","/",0);
+	search(yytext,"IDF","String","/",x,"/","/","/",0);
 	yylval.str=strdup(yytext);
 	return STRING;
 }
@@ -306,10 +306,11 @@ exception {letter}*"Exception"
 	else{
 		ECHO;
 		nb_character += strlen(yytext);
-		if (emp==0)
-			search(yytext,"IDF","-1","-1","-1","-1","-1","GLOBAL",0);
+		if (current_class_level==0)
+			search(yytext,"IDF","-1","-1","-1","-1","-1","MAIN",0);
 		else {
-			sprintf(x,"LOCAL %d",emp); search(yytext,"IDF","-1","-1","-1","-1","-1",x,0);
+			sprintf(x,"CLASS %d",current_class_level); 
+			search(yytext,"IDF","-1","-1","-1","-1","-1",x,0);
 		}
 		yylval.str=strdup(yytext);
 		return IDF;

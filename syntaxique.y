@@ -9,10 +9,10 @@ int nb_line=1;
 int nb_character=0;
 char *file_name;
 char taille[20];
-char empla[20];
-int emp=0;
+char class_emplacement[20];
+int current_class_level=0;
 char typeIDF[20];
-char savet[20];
+char current_type[20];
 int param=0;
 char para[20];
 
@@ -40,7 +40,7 @@ char tab[20];
     char* str;
 }
 
-%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE
+%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE OPTIONAL_MULTIDIMENSION METHOD_SUFFIX ENTITY_ITEM_SUFFIX OBJECT_NAME OBJECT_ACCESS_METHOD OBJECT_ACCESS_SUFFIX OBJECT_ACCESS_SEQUENCE
 ;
 
 %token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
@@ -57,7 +57,7 @@ char tab[20];
 %left opNOT
 
 %%
-JAVA: IMPORT_LIST CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
+JAVA: IMPORT_LIST {current_class_level++;} CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
 ;
 
 // ------------------------------- PACKAGE IMPORT BLOCK -------------------------------------------------------------------------
@@ -69,9 +69,16 @@ IMPORT_LIST: IMPORT_LIST IMPORT_ITEM
 IMPORT_ITEM: kwIMPORT IMPORT_PATH pvg
 ;
 
-IMPORT_PATH: IDF { $$ = strdup($1); }
+IMPORT_PATH: IDF 
+              {
+                strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                miseajour($1,"Import Path","/", "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
+                $$ = strdup($1); 
+              }
            | IMPORT_PATH pt IDF 
                {
+                  strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                  miseajour($3,"Import Path","/", "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
                   // char *tmp = malloc(strlen($1) + strlen($3) + 2);
                   // sprintf(tmp, "%s.%s", $1, $3);
                   // $$ = tmp;
@@ -80,7 +87,7 @@ IMPORT_PATH: IDF { $$ = strdup($1); }
 
 // ------------------------------ MAIN CLASS BLOCK ---------------------------------------------------------------------------
 
-MAIN_CLASS: kwCLASS kwMAIN { emp = 0; } acco MAIN_METHOD accf 
+MAIN_CLASS: kwCLASS kwMAIN { current_class_level = 0; } acco MAIN_METHOD accf 
           |
 ;
 
@@ -93,7 +100,12 @@ CLASS_LIST: CLASS_LIST CLASS
           | 
 ;
 
-CLASS: kwCLASS {emp++;} IDF acco ENTITY_LIST accf 
+CLASS: kwCLASS IDF acco ENTITY_LIST accf 
+            {
+                strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                miseajour($2, "Class Name","/", "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
+                current_class_level++;
+            }
 ;
 
 // ---------------------------- ENTITY BLOCK (ATTRIBUTES AND METHODS) ---------------------------------------------------------
@@ -106,28 +118,38 @@ ENTITY_LIST_NONEMPTY: ENTITY_ITEM
                     | ENTITY_LIST_NONEMPTY ENTITY_ITEM
 ;
 
-ENTITY_ITEM: TYPE IDF ENTITY_ITEM_SUFFIX
+ENTITY_ITEM: TYPE IDF ENTITY_ITEM_SUFFIX 
+                {
+                  strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                  miseajour($2, $3, $1, "-1", "-1", "-1", "-1", class_emplacement, "SYNTAXIQUE");
+                }
            | CONSTRUCTOR
 ;
 
-ENTITY_ITEM_SUFFIX: METHOD_SUFFIX
-                  | VARIABLE_SUFFIX pvg
+ENTITY_ITEM_SUFFIX: METHOD_SUFFIX {$$=strdup("Class Method");}
+                  | VARIABLE_SUFFIX pvg {$$ = strdup("Class Attribute");}
 ;
 
+// -------------------------- CONSTRUCTOR BLOCK ---------------------------------------------------------------------------------
+
+CONSTRUCTOR: IDF CONSTRUCTOR_SUFFIX
+;
+
+CONSTRUCTOR_SUFFIX: po CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
+;
+
+CONSTRUCTOR_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
+                          |
+;
 // -------------------------- METHOD BLOCK ---------------------------------------------------------------------------------
-
-CONSTRUCTOR: IDF METHOD_SUFFIX
-                {
-                    miseajour($1, "Fonction", "void", "-1", "-1","-1", "-1", emp==0?"GLOBAL":"LOCAL", "SYNTAXIQUE");
-                }
-;
 
 METHOD_SUFFIX: po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
 ;
 
 METHOD_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
                         {
-                            miseajour($2, "Parameter", $1, "-1", "-1","-1", "-1", emp==0?"GLOBAL":"LOCAL", "SYNTAXIQUE");
+                            strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                            miseajour($2, "Parameter", $1, "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
                         }
                      |
 ;
@@ -138,22 +160,32 @@ METHOD_PARAMETER_ITEM: vg TYPE IDF METHOD_PARAMETER_ITEM
 
 // ----------------------------- TYPE BLOCK -----------------------------------------------------------------------------------
 
-TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION {$$=strdup($1);}
+TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION 
+        {
+          strcat(tab,$1);strcat(tab,$2);
+          $$=strdup(tab);
+          strcpy(tab,"");
+        }
     | OBJECT_TYPE {$$=strdup($1);}
 ;
 
 BASE_TYPE: NUMERIC_TYPE {$$=strdup($1);}
-         | kwBOOLEAN {$$=strdup($1);strcpy(savet,$1);}
-         | kwCHAR    {$$=strdup($1);strcpy(savet,$1);}
-         | kwVOID    {$$=strdup($1);strcpy(savet,$1);}
+         | kwBOOLEAN {$$=strdup($1);strcpy(current_type,$1);}
+         | kwCHAR    {$$=strdup($1);strcpy(current_type,$1);}
+         | kwVOID    {$$=strdup($1);strcpy(current_type,$1);}
 ;
 
-NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
-            | kwFLOAT   {$$=strdup($1);strcpy(savet,$1);}
-            | kwDOUBLE  {$$=strdup($1);strcpy(savet,$1);}
+NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(current_type,$1);}
+            | kwFLOAT   {$$=strdup($1);strcpy(current_type,$1);}
+            | kwDOUBLE  {$$=strdup($1);strcpy(current_type,$1);}
 ;
 
-OBJECT_TYPE: IDF {$$=strdup($1);}
+OBJECT_TYPE: IDF 
+              {
+                strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                miseajour($1, "Object Type","/", "/", "/","/", "/", class_emplacement, "SYNTAXIQUE");
+                $$=strdup($1);
+              }
 ;
 
 // ------------------------------ OBJECT BLOCK --------------------------------------------------------------------------------------
@@ -161,24 +193,37 @@ OBJECT_TYPE: IDF {$$=strdup($1);}
 OBJECT_CREATION: kwNEW IDF po ARGUMENT_LIST pf
 ;
 
-OBJECT_ACCESS: OBJECT_ACCESS_SEQUENCE
+OBJECT_ACCESS: OBJECT_ACCESS_SEQUENCE 
+                  {
+
+                  }
              | kwTHIS pt OBJECT_ACCESS_SEQUENCE 
+                  {
+
+                  }
 ;           
 
-OBJECT_ACCESS_SEQUENCE: OBJECT_ACCESS_SUFFIX
-                      | OBJECT_ACCESS_SEQUENCE pt OBJECT_ACCESS_SUFFIX
+OBJECT_ACCESS_SEQUENCE: OBJECT_ACCESS_SUFFIX {$$=strdup($1);}
+                      | OBJECT_ACCESS_SEQUENCE pt OBJECT_ACCESS_SUFFIX 
+                          {
+                            strcat(tab,$1);
+                            strcat(tab,$2);
+                            strcat(tab,$3);
+                            $$=strdup(tab);
+                            strcpy(tab,"");
+                          }
 ;
 
-OBJECT_ACCESS_SUFFIX: OBJECT_NAME 
-                    | OBJECT_ACCESS_METHOD
+OBJECT_ACCESS_SUFFIX: OBJECT_NAME {$$=strdup($1);}
+                    | OBJECT_ACCESS_METHOD {$$=strdup($1);}
 ;  
 
-OBJECT_NAME: IDF
+OBJECT_NAME: IDF {$$=strdup($1);}
 ;
 
 OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                   { 
-                    // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                    // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     //   YYABORT;
                     // }
@@ -186,7 +231,7 @@ OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared function '%s'.\n",file_name,nb_line,nb_character,$4);
                     //   YYABORT;
                     // }
-                    // strcpy(typeIDF,getType($1,emp,"Variable"));
+                    // strcpy(typeIDF,getType($1,current_class_level,"Variable"));
                     // if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"/")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -197,12 +242,15 @@ OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
                     //   YYABORT;
                     // }
-                    // if (emp==0)
+                    // if (current_class_level==0)
                     //     search($4,"Idf","/","/","/","/","/","GLOBAL",3);
                     //   else {
-                    //     sprintf(empla,"LOCAL %d",emp); 
-                    //     search($4,"Idf","/","/","/","/","/",empla,3);
+                    //     sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                    //     search($4,"Idf","/","/","/","/","/",class_emplacement,3);
                     // }
+                    strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                    miseajour($1, "Object Method", "-1", "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                    $$=strdup($1);
                   }
 ;
 
@@ -226,8 +274,31 @@ ARGUMENTS:
 // ------------------------------ OPTIONAL BLOCK ------------------------------------------------------------------------------
 
 OPTIONAL_MULTIDIMENSION: dimo INDEX dimf OPTIONAL_MULTIDIMENSION
+                         {
+                           // if (atof($2)<1){
+                           //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
+                           //   YYABORT;
+                           // }
+                            strcat(tab,$1);
+                            strcat(tab,$2);
+                            strcat(tab,$3);
+                            strcat(tab,$4);
+                            $$=strdup(tab);
+                            strcpy(tab,"");
+                         }
                        | dimo dimf OPTIONAL_MULTIDIMENSION
-                       |
+                          {
+                            strcat(tab,$1);
+                            strcat(tab,$2);
+                            strcat(tab,$3);
+                            $$=strdup(tab);
+                            strcpy(tab,"");
+                          }
+                       | 
+                          {
+                            $$=strdup(tab);
+                            strcpy(tab,"");
+                          }
 ;
 
 OPTIONAL_ASSIGN: opASSIGN EXPRESSION
@@ -236,11 +307,11 @@ OPTIONAL_ASSIGN: opASSIGN EXPRESSION
 
 INDEX: EXPRESSION_ITEM 
         { 
-          // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+          // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
           //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
           //   YYABORT;
           // }
-          // strcpy(typeIDF,getType($1,emp,"Variable"));
+          // strcpy(typeIDF,getType($1,current_class_level,"Variable"));
           // if(strcmp(typeIDF,"INTEGER")!=0){
           //   printf("\nFile '%s', line %d, character %d: semantic error : Unexpected index type '%s'.\n",file_name,nb_line,nb_character,$1);
           //   YYABORT;
@@ -256,7 +327,7 @@ INDEX: EXPRESSION_ITEM
           //     printf("\nFile '%s', line %d, character %d: semantic error : Negative index value.\n",file_name,nb_line,nb_character);
           //     YYABORT;
           // }
-          // $$=strdup($1);
+          $$=strdup($1);
         }
 ;
 
@@ -268,29 +339,29 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
 
                 // sans affectation
 
-                // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 //   YYABORT;
                 // }
-                // if (emp==0)
+                // if (current_class_level==0)
                 //   miseajour($2,"Variable",$1,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
                 // else {
-                //   sprintf(empla,"LOCAL %d",emp); 
-                //   miseajour($2,"Variable",$1,"-1","/","/","/",empla,"SYNTAXIQUE");
+                //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                //   miseajour($2,"Variable",$1,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
                 // }
 
                 // avec affectation
 
                 // diviserChaine($4,partie1_1,partie1_2);
-                // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 //   YYABORT;
                 // }
-                // if (emp==0)
+                // if (current_class_level==0)
                 //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                 // else {
-                //   sprintf(empla,"LOCAL %d",emp); 
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                 // }
                 // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
                 //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
@@ -304,15 +375,15 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
 
                 // sans affectation
 
-              // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+              // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
               //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
               //   YYABORT;
               // }
-              // if (emp==0)
+              // if (current_class_level==0)
               //   miseajour($2,"Vecteur",$1,"/",$4,$4,"/","GLOBAL","SYNTAXIQUE");
               // else {
-              //   sprintf(empla,"LOCAL %d",emp); 
-              //   miseajour($2,"Vecteur",$1,"/",$4,$4,"/",empla,"SYNTAXIQUE");
+              //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+              //   miseajour($2,"Vecteur",$1,"/",$4,$4,"/",class_emplacement,"SYNTAXIQUE");
               // }
               // if(atof($5)<1){
               //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -324,15 +395,15 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
               // avec affectation 
                 
                 // diviserChaine($4,partie1_1,partie1_2);
-                // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 //   YYABORT;
                 // }
-                // if (emp==0)
+                // if (current_class_level==0)
                 //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                 // else {
-                //   sprintf(empla,"LOCAL %d",emp); 
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                 // }
                 // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
                 //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
@@ -347,15 +418,15 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
                  // sans affectation
 
               // sprintf(taille,"%d",atoi($4)*atoi($6));
-              // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+              // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
               //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
               //   YYABORT;
               // }
-              // if (emp==0)
+              // if (current_class_level==0)
               //   miseajour($2,"Matrice",$1,"/",taille,$4,$6,"GLOBAL","SYNTAXIQUE");
               // else {
-              //   sprintf(empla,"LOCAL %d",emp); 
-              //   miseajour($2,"Matrice",$1,"/",taille,$4,$6,empla,"SYNTAXIQUE"); 
+              //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+              //   miseajour($2,"Matrice",$1,"/",taille,$4,$6,class_emplacement,"SYNTAXIQUE"); 
               // }
               // if(atof($4)<1 || atof($6)<1){
               //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -368,15 +439,15 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
               // avec affectation
 
                 // diviserChaine($4,partie1_1,partie1_2);
-                // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 //   YYABORT;
                 // }
-                // if (emp==0)
+                // if (current_class_level==0)
                 //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                 // else {
-                //   sprintf(empla,"LOCAL %d",emp); 
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                 // }
                 // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
                 //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
@@ -394,38 +465,38 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
 
                     // sans affectation 
 
-                    // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
                     // }
-                    // if (emp==0)
-                    //   miseajour($2,"Variable",savet,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
+                    // if (current_class_level==0)
+                    //   miseajour($2,"Variable",current_type,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
                     // else {
-                    //   sprintf(empla,"LOCAL %d",emp); 
-                    //   miseajour($2,"Variable",savet,"-1","/","/","/",empla,"SYNTAXIQUE");
+                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                    //   miseajour($2,"Variable",current_type,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
                     // }
 
                     // avec affectation
 
                     // diviserChaine($4,partie1_1,partie1_2);
-                    // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
                     // }
-                    // if (emp==0)
-                    //   miseajour($2,"Variable",savet,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                    // if (current_class_level==0)
+                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                     // else {
-                    //   sprintf(empla,"LOCAL %d",emp); 
-                    //   miseajour($2,"Variable",savet,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                     // }
-                    // if (strcmp(getType($2,emp,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
-                    //   if(strcmp(getType($2,emp,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
+                    // if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                    //   if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
                     //   }
                     // }
-                    // if(strcmp(getType($2,emp,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($2,emp,"Variable",partie1_2)) {
+                    // if(strcmp(getType($2,current_class_level,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
+                    //   if (!verif_char($2,current_class_level,"Variable",partie1_2)) {
                     //     printf("\nFile '%s', line %d, character %d: semantic error : String too long.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
                     //   }
@@ -436,15 +507,15 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
 
                     // sans affectation
 
-                    // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
                     // }
-                    // if (emp==0)
-                    //   miseajour($2,"Vecteur",savet,"/",$5,$5,"-1","GLOBAL","SYNTAXIQUE");
+                    // if (current_class_level==0)
+                    //   miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1","GLOBAL","SYNTAXIQUE");
                     // else {
-                    //   sprintf(empla,"LOCAL %d",emp); 
-                    //   miseajour($2,"Vecteur",savet,"/",$5,$5,"-1",empla,"SYNTAXIQUE");
+                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                    //   miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1",class_emplacement,"SYNTAXIQUE");
                     // }
                     // if(atof($5)<1){
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -456,24 +527,24 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     //avec affectation
 
                      // diviserChaine($4,partie1_1,partie1_2);
-                    // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
                     // }
-                    // if (emp==0)
-                    //   miseajour($2,"Variable",savet,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                    // if (current_class_level==0)
+                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                     // else {
-                    //   sprintf(empla,"LOCAL %d",emp); 
-                    //   miseajour($2,"Variable",savet,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                     // }
-                    // if (strcmp(getType($2,emp,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
-                    //   if(strcmp(getType($2,emp,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
+                    // if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                    //   if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
                     //   }
                     // }
-                    // if(strcmp(getType($2,emp,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($2,emp,"Variable",partie1_2)) {
+                    // if(strcmp(getType($2,current_class_level,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
+                    //   if (!verif_char($2,current_class_level,"Variable",partie1_2)) {
                     //     printf("\nFile '%s', line %d, character %d: semantic error : String too long.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
                     //   }
@@ -486,15 +557,15 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
 
 
                     // sprintf(taille,"%d",atoi($5)*atoi($7));
-                    // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
                     // }
-                    // if (emp==0)
-                    //   miseajour($2,"Matrice",savet,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
+                    // if (current_class_level==0)
+                    //   miseajour($2,"Matrice",current_type,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
                     // else {
-                    //   sprintf(empla,"LOCAL %d",emp); 
-                    //   miseajour($2,"Matrice",savet,"/",taille,$5,$7,empla,"SYNTAXIQUE");
+                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                    //   miseajour($2,"Matrice",current_type,"/",taille,$5,$7,class_emplacement,"SYNTAXIQUE");
                     // } 
                     // if(atof($5)<1 || atof($7)<1){
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -506,15 +577,15 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
 
                     //avec affectation
                       // diviserChaine($4,partie1_1,partie1_2);
-                      // if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                      // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       //   YYABORT;
                       // }
-                      // if (emp==0)
+                      // if (current_class_level==0)
                       //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                       // else {
-                      //   sprintf(empla,"LOCAL %d",emp); 
-                      //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                      //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                       // }
                       // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
                       //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
@@ -547,19 +618,17 @@ INSTRUCTION_ITEM: OUTPUT    pvg
 
 // ------------------------------ DECLARATION BLOCK -------------------------------------------------------------------------------
 
-DECLARATION: TYPE IDF VARIABLE_SUFFIX
+DECLARATION: TYPE IDF VARIABLE_SUFFIX 
+                {
+                  strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                  miseajour($2, "Variable", $1, "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                }
 ;
 
 // ------------------------------ PRINT BLOCK -------------------------------------------------------------------------------------
 
 OUTPUT: PRINT po STRING_MESSAGE pf 
-          {
-            // search($3,"Idf","STRING","/","-1","/","/","/",3);
-          }
       | PRINT po VARIABLE_MESSAGE pf  
-          {
-            // search($3,"Idf","STRING","/","-1","/","/","/",3);
-          }
 ;
 
 PRINT: kwPRINTLN
@@ -567,40 +636,24 @@ PRINT: kwPRINTLN
 
 STRING_MESSAGE: STRING MESSAGE_CONCATENATION
                   {
-                    // strcat(tab,$1);strcat(tab,$2);
-                    // $$=strdup(tab);
-                    // strcpy(tab," ");
+                    search($1,"IDF","String","/","-1","/","/","/",3);
                   }
               | STRING
                   {
-                    // $$=strdup($1);
+                    search($1,"IDF","String","/","-1","/","/","/",3);
                   }
               | VARIABLE_MESSAGE opADD STRING_MESSAGE
-                  {
-                    // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);
-                    // $$=strdup(tab);
-                    // strcpy(tab," ");
-                  }
-              | { $$=strdup(""); }
+                  {}
+              | {}
 ;
 
 MESSAGE_CONCATENATION: opADD VARIABLE_MESSAGE opADD STRING_MESSAGE
-                    {
-                      // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);
-                      // $$=strdup(tab);
-                      // strcpy(tab," ");
-                    }
-                | opADD VARIABLE_MESSAGE 
-                    {
-                      // strcat(tab,$1);strcat(tab,$2);
-                      // $$=strdup(tab);
-                      // strcpy(tab," ");
-                    }
+                     | opADD VARIABLE_MESSAGE 
 ;
 
 VARIABLE_MESSAGE : OBJECT_ACCESS                      
                 { 
-                  // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                  // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                   //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                   //   YYABORT;
                   // }
@@ -608,7 +661,7 @@ VARIABLE_MESSAGE : OBJECT_ACCESS
                 }
           | OBJECT_ACCESS dimo INDEX dimf 
                 { 
-                  // if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
+                  // if (!idf_existe($1,current_class_level,"Vecteur") && !idf_existe($1,current_class_level,"Parametre")) {
                   //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                   //   YYABORT;
                   // }
@@ -616,7 +669,7 @@ VARIABLE_MESSAGE : OBJECT_ACCESS
                 }
           | OBJECT_ACCESS dimo INDEX vg INDEX dimf 
                 { 
-                  // if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
+                  // if (!idf_existe($1,current_class_level,"Matrice") && !idf_existe($1,current_class_level,"Parametre")) {
                   //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                   //   YYABORT;
                   // }
@@ -628,12 +681,12 @@ VARIABLE_MESSAGE : OBJECT_ACCESS
 
 ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM  
                   { 
-                    // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                    // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     //   YYABORT;
                     // }
                     // diviserChaine($3,partie1_1,partie1_2);
-                    // strcpy(typeIDF,getType($1,emp,"Variable"));
+                    // strcpy(typeIDF,getType($1,current_class_level,"Variable"));
                     // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //       printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -641,7 +694,7 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
                     //   }
                     // }
                     // if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($1,emp,"Variable",partie1_2)) {
+                    //   if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
                     //     printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
                     //   }
@@ -652,11 +705,11 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
         | OBJECT_ACCESS dimo INDEX dimf opASSIGN EXPRESSION
                   { 
                     // diviserChaine($6,partie1_1,partie1_2);
-                    // if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
+                    // if (!idf_existe($1,current_class_level,"Vecteur") && !idf_existe($1,current_class_level,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     //   YYABORT;
                     // }
-                    // strcpy(typeIDF,getType($1,emp,"Vecteur"));
+                    // strcpy(typeIDF,getType($1,current_class_level,"Vecteur"));
                     // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -664,7 +717,7 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
                     //   }
                     // }
                     // if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($1,emp,"Variable",partie1_2)) {
+                    //   if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
                     //     printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
                     //   }
@@ -677,11 +730,11 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
            | OBJECT_ACCESS dimo INDEX vg INDEX dimf opASSIGN EXPRESSION
                   { 
                     // diviserChaine($8,partie1_1,partie1_2);
-                    // if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
+                    // if (!idf_existe($1,current_class_level,"Matrice") && !idf_existe($1,current_class_level,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     //   YYABORT;
                     // }
-                    // strcpy(typeIDF,getType($1,emp,"Matrice"));
+                    // strcpy(typeIDF,getType($1,current_class_level,"Matrice"));
                     // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -689,7 +742,7 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
                     //   }
                     // }
                     // if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($1,emp,"Variable",partie1_2)) {
+                    //   if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
                     //     printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
                     //   }
@@ -832,24 +885,24 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                   } 
           | OBJECT_ACCESS  
                   { 
-                    // if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                    // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     //   YYABORT;
                     // }
                     // strcpy(ch,"-");
                     // strcat(ch,$1);
-                    // if (idf_existe($1,emp,"Variable")) strcpy(cat,getType($1,emp,"Variable"));
-                    // if (idf_existe($1,emp,"Parametre")) strcpy(cat,getType($1,emp,"Parametre"));
+                    // if (idf_existe($1,current_class_level,"Variable")) strcpy(cat,getType($1,current_class_level,"Variable"));
+                    // if (idf_existe($1,current_class_level,"Parametre")) strcpy(cat,getType($1,current_class_level,"Parametre"));
                     // strcat(cat,ch);
                     // $$=strdup(cat);
                   }      
           | OBJECT_ACCESS dimo INDEX dimf 
                   {
-                    // if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
+                    // if (!idf_existe($1,current_class_level,"Vecteur") && !idf_existe($1,current_class_level,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     //   YYABORT;
                     // }
-                    // if (!verif_index($1,emp,"Vecteur",$3,"Ligne")) {
+                    // if (!verif_index($1,current_class_level,"Vecteur",$3,"Ligne")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Index out of range '%s(%s)'.\n",file_name,nb_line,nb_character,$1,$3);
                     //   YYABORT;
                     // }
@@ -857,18 +910,18 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                     // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);
                     // strcat(ch,tab);
                     // strcpy(tab," ");
-                    // if (idf_existe($1,emp,"Vecteur")) strcpy(cat,getType($1,emp,"Vecteur"));
-                    // if (idf_existe($1,emp,"Parametre")) strcpy(cat,getType($1,emp,"Parametre"));
+                    // if (idf_existe($1,current_class_level,"Vecteur")) strcpy(cat,getType($1,current_class_level,"Vecteur"));
+                    // if (idf_existe($1,current_class_level,"Parametre")) strcpy(cat,getType($1,current_class_level,"Parametre"));
                     // strcat(cat,ch);
                     // $$=strdup(cat);
                   }
           | OBJECT_ACCESS dimo INDEX vg INDEX dimf
                   {
-                    // if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
+                    // if (!idf_existe($1,current_class_level,"Matrice") && !idf_existe($1,current_class_level,"Parametre")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     //   YYABORT;
                     // }
-                    // if (!verif_index($1,emp,"Matrice",$3,"Ligne") || !verif_index($1,emp,"Matrice",$5,"Colonne")) {
+                    // if (!verif_index($1,current_class_level,"Matrice",$3,"Ligne") || !verif_index($1,current_class_level,"Matrice",$5,"Colonne")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Index out of range '%s(%s,%s)'.\n",file_name,nb_line,nb_character,$1,$3,$5);
                     //   YYABORT;
                     // }
@@ -876,8 +929,8 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                     // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);strcat(tab,$5);strcat(tab,$6);
                     // strcat(ch,tab);
                     // strcpy(tab," ");
-                    // if (idf_existe($1,emp,"Matrice")) strcpy(cat,getType($1,emp,"Matrice"));
-                    // if (idf_existe($1,emp,"Parametre")) strcpy(cat,getType($1,emp,"Parametre"));
+                    // if (idf_existe($1,current_class_level,"Matrice")) strcpy(cat,getType($1,current_class_level,"Matrice"));
+                    // if (idf_existe($1,current_class_level,"Parametre")) strcpy(cat,getType($1,current_class_level,"Parametre"));
                     // strcat(cat,ch);
                     // $$=strdup(cat);
                   }             
@@ -1067,17 +1120,19 @@ FOR_LOOP: kwFOR FOR_LOOP_SIGNATURE acco INSTRUCTION_LIST accf
           }
 ;
 
-TYPEfor: kwINT
-       | kwFLOAT
-       | kwDOUBLE
-       | kwCHAR
-; 
-
-COUNTER_INIT: TYPEfor IDF OPTIONAL_ASSIGN
+COUNTER_INIT: NUMERIC_TYPE IDF OPTIONAL_ASSIGN
+                  {
+                      strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                      miseajour($2,"Loop Counter",$1, "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
+                  }
             | OBJECT_ACCESS OPTIONAL_ASSIGN
             |
 
-FOR_LOOP_SIGNATURE: po TYPEfor IDF dp OBJECT_ACCESS pf 
+FOR_LOOP_SIGNATURE: po NUMERIC_TYPE IDF dp OBJECT_ACCESS pf 
+                        {
+                          strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                          miseajour($3,"Loop Parser",$2, "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
+                        }
                   | po OBJECT_ACCESS dp OBJECT_ACCESS pf
                   | po COUNTER_INIT pvg CONDITION pvg INCREMENT pf
 ;
@@ -1142,8 +1197,16 @@ CATCH_LIST: kwCATCH po CATCH_PARAMETER pf acco INSTRUCTION_LIST accf CATCH_LIST
           |
 ;
 
-CATCH_PARAMETER: IDF
+CATCH_PARAMETER: IDF 
+                  {
+                    strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                    miseajour($1, "Catch Parameter", "-1", "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                  }
                | kwEXCEPTION IDF
+                  {
+                    strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
+                    miseajour($2, "Catch Parameter", $1, "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                  }
                |
 ;
 
@@ -1160,7 +1223,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
 ; */
 
 /* PROC: SIGNATURE ROUTINE PROC
-    | {emp=0;}
+    | {current_class_level=0;}
 ; */
 
 /* SIGNATURE: TYPEPROC kwROUTINE idf po PARAM pf 
@@ -1183,8 +1246,8 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* PARAM: idf PARA
           { 
-            sprintf(empla,"LOCAL %d",emp);
-            miseajour($1,"Parametre","/","/","/","/","/",empla,"SYNTAXIQUE");
+            sprintf(class_emplacement,"LOCAL %d",current_class_level);
+            miseajour($1,"Parametre","/","/","/","/","/",class_emplacement,"SYNTAXIQUE");
             param++;
           }
      | 
@@ -1192,14 +1255,14 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* PARA: vg idf PARA
           { 
-            sprintf(empla,"LOCAL %d",emp);
-            miseajour($2,"Parametre","/","/","/","/","/",empla,"SYNTAXIQUE");
+            sprintf(class_emplacement,"LOCAL %d",current_class_level);
+            miseajour($2,"Parametre","/","/","/","/","/",class_emplacement,"SYNTAXIQUE");
             param++;
           }
     |
 ; */
 
-/* ROUTINE: DEC INSTPROC kwENDR {emp++;}
+/* ROUTINE: DEC INSTPROC kwENDR {current_class_level++;}
 ; */
 
 /* INSTPROC: EQU         INSTSPROC        
@@ -1235,11 +1298,11 @@ RETURN: kwRETURN EXPRESSION_ITEM
 /* RETOUR: idf aff EXPRESSION_ITEM  
             { 
               diviserChaine($3,partie1_1,partie1_2);
-              if (!idf_existe($1,emp,"Fonction")) {
+              if (!idf_existe($1,current_class_level,"Fonction")) {
                 printf("\nFile '%s', line %d, character %d: semantic error : Wrong function return '%s'.\n",file_name,nb_line,nb_character,$1);
                 YYABORT;
               }
-              strcpy(typeIDF,getType($1,emp,"Fonction"));
+              strcpy(typeIDF,getType($1,current_class_level,"Fonction"));
               if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
                 if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -1260,36 +1323,36 @@ RETURN: kwRETURN EXPRESSION_ITEM
    |
 ; */
 
-/* TYPE: kwINTEGER  {$$=strdup($1);strcpy(savet,$1);}
-    | kwREAL     {$$=strdup($1);strcpy(savet,$1);}
-    | kwLOGICAL  {$$=strdup($1);strcpy(savet,$1);}
+/* TYPE: kwINTEGER  {$$=strdup($1);strcpy(current_type,$1);}
+    | kwREAL     {$$=strdup($1);strcpy(current_type,$1);}
+    | kwLOGICAL  {$$=strdup($1);strcpy(current_type,$1);}
 ; */
 
 /* DECSOLO: TYPE idf LISTVAR pvg 
               { 
-                if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                   YYABORT;
                 }
-                if (emp==0)
+                if (current_class_level==0)
                   miseajour($2,"Variable",$1,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
                 else {
-                  sprintf(empla,"LOCAL %d",emp); 
-                  miseajour($2,"Variable",$1,"-1","/","/","/",empla,"SYNTAXIQUE");
+                  sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                  miseajour($2,"Variable",$1,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
                 }
               }
        | TYPE idf aff EXPRESSION_ITEM LISTVAR pvg 
               { 
                 diviserChaine($4,partie1_1,partie1_2);
-                if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                   YYABORT;
                 }
-                if (emp==0)
+                if (current_class_level==0)
                   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                 else {
-                  sprintf(empla,"LOCAL %d",emp); 
-                  miseajour($2,"Variable",$1,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                  sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                  miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                 }
                 if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
                   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
@@ -1301,35 +1364,35 @@ RETURN: kwRETURN EXPRESSION_ITEM
               }
        | kwCHARACTER idf MULCHAR LISTVARSOLOCHAR pvg 
               { 
-                if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                   YYABORT;
                 }
-                if (emp==0)
+                if (current_class_level==0)
                   miseajour($2,"Variable",$1,"-1",$3,"/","/","GLOBAL","SYNTAXIQUE");
                 else {
-                  sprintf(empla,"LOCAL %d",emp); 
-                  miseajour($2,"Variable",$1,"-1",$3,"/","/",empla,"SYNTAXIQUE");
+                  sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                  miseajour($2,"Variable",$1,"-1",$3,"/","/",class_emplacement,"SYNTAXIQUE");
                 }
               } 
        | kwCHARACTER idf MULCHAR aff EXPRESSION_ITEM LISTVARSOLOCHAR pvg 
               {
                 diviserChaine($5,partie1_1,partie1_2);
-                if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                   YYABORT;
                 }
-                if (emp==0)
+                if (current_class_level==0)
                   miseajour($2,"Variable",$1,partie1_2,$3,"/","/","GLOBAL","SEMANTIQUE");
                 else {
-                  sprintf(empla,"LOCAL %d",emp); 
-                  miseajour($2,"Variable",$1,partie1_2,$3,"/","/",empla,"SEMANTIQUE");
+                  sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                  miseajour($2,"Variable",$1,partie1_2,$3,"/","/",class_emplacement,"SEMANTIQUE");
                 }
                 if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
                   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                   YYABORT;
                 }
-                if (!verif_char($2,emp,"Variable",partie1_2)) {
+                if (!verif_char($2,current_class_level,"Variable",partie1_2)) {
                   printf("\nFile '%s', line %d, character %d: semantic error : String too long.\n",file_name,nb_line,nb_character);
                   YYABORT;
                 }
@@ -1339,15 +1402,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* DECTAB: TYPE idf kwDIMENSION po integer pf LISTVAR pvg 
             { 
-              if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+              if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 YYABORT;
               }
-              if (emp==0)
+              if (current_class_level==0)
                 miseajour($2,"Vecteur",$1,"/",$5,$5,"/","GLOBAL","SYNTAXIQUE");
               else {
-                sprintf(empla,"LOCAL %d",emp); 
-                miseajour($2,"Vecteur",$1,"/",$5,$5,"/",empla,"SYNTAXIQUE");
+                sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                miseajour($2,"Vecteur",$1,"/",$5,$5,"/",class_emplacement,"SYNTAXIQUE");
               }
               if(atof($5)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1359,15 +1422,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
       | kwCHARACTER idf MULCHAR kwDIMENSION po integer pf LISTVARTABCHAR pvg   
             { 
               sprintf(taille,"%d",atoi($6)*atoi($3));
-              if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+              if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 YYABORT;
               }
-              if (emp==0)
+              if (current_class_level==0)
                 miseajour($2,"Vecteur",$1,"/",taille,$6,"/","GLOBAL","SYNTAXIQUE");  
               else {
-                sprintf(empla,"LOCAL %d",emp); 
-                miseajour($2,"Vecteur",$1,"/",taille,$6,"/",empla,"SYNTAXIQUE");  
+                sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                miseajour($2,"Vecteur",$1,"/",taille,$6,"/",class_emplacement,"SYNTAXIQUE");  
               }
               if(atof($6)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1381,15 +1444,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
 /* DECMAT: TYPE idf kwDIMENSION po integer vg integer pf LISTVAR pvg 
             { 
               sprintf(taille,"%d",atoi($5)*atoi($7));
-              if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+              if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 YYABORT;
               }
-              if (emp==0)
+              if (current_class_level==0)
                 miseajour($2,"Matrice",$1,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
               else {
-                sprintf(empla,"LOCAL %d",emp); 
-                miseajour($2,"Matrice",$1,"/",taille,$5,$7,empla,"SYNTAXIQUE"); 
+                sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                miseajour($2,"Matrice",$1,"/",taille,$5,$7,class_emplacement,"SYNTAXIQUE"); 
               }
               if(atof($5)<1 || atof($7)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1402,15 +1465,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
       | kwCHARACTER idf MULCHAR kwDIMENSION po integer vg integer pf LISTVARMATCHAR pvg 
             { 
               sprintf(taille,"%d",atoi($6)*atoi($8)*atoi($3));
-              if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+              if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                 printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                 YYABORT;
               }
-              if (emp==0)
+              if (current_class_level==0)
                 miseajour($2,"Matrice",$1,"/",taille,$6,$8,"GLOBAL","SYNTAXIQUE");
               else {
-                sprintf(empla,"LOCAL %d",emp); 
-                miseajour($2,"Matrice",$1,"/",taille,$6,$8,empla,"SYNTAXIQUE"); 
+                sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                miseajour($2,"Matrice",$1,"/",taille,$6,$8,class_emplacement,"SYNTAXIQUE"); 
               }
               if(atof($6)<1 || atof($8)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1440,38 +1503,38 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* LISTVARSOLO: vg idf LISTVAR 
                   {  
-                    if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (emp==0)
-                      miseajour($2,"Variable",savet,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
+                    if (current_class_level==0)
+                      miseajour($2,"Variable",current_type,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Variable",savet,"-1","/","/","/",empla,"SYNTAXIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Variable",current_type,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
                     }
                   }
            | vg idf aff EXPRESSION_ITEM LISTVAR 
                   { 
                     diviserChaine($4,partie1_1,partie1_2);
-                    if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (emp==0)
-                      miseajour($2,"Variable",savet,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                    if (current_class_level==0)
+                      miseajour($2,"Variable",current_type,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Variable",savet,partie1_2,"/","/","/",empla,"SEMANTIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Variable",current_type,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
                     }
-                    if (strcmp(getType($2,emp,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
-                      if(strcmp(getType($2,emp,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
+                    if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                      if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                         YYABORT;
                       }
                     }
-                    if(strcmp(getType($2,emp,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                      if (!verif_char($2,emp,"Variable",partie1_2)) {
+                    if(strcmp(getType($2,current_class_level,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
+                      if (!verif_char($2,current_class_level,"Variable",partie1_2)) {
                         printf("\nFile '%s', line %d, character %d: semantic error : String too long.\n",file_name,nb_line,nb_character);
                         YYABORT;
                       }
@@ -1482,34 +1545,34 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* LISTVARSOLOCHAR: vg idf MULCHAR LISTVARSOLOCHAR 
                   { 
-                    if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (emp==0)
+                    if (current_class_level==0)
                       miseajour($2,"Variable","CHARACTER","-1",$3,"/","/","GLOBAL","SYNTAXIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Variable","CHARACTER","-1",$3,"/","/",empla,"SYNTAXIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Variable","CHARACTER","-1",$3,"/","/",class_emplacement,"SYNTAXIQUE");
                     }
                   } 
                | vg idf MULCHAR aff EXPRESSION_ITEM LISTVARSOLOCHAR 
                   { 
                     diviserChaine($5,partie1_1,partie1_2);
-                    if (emp==0)
+                    if (current_class_level==0)
                       miseajour($2,"Variable","CHARACTER",partie1_2,$3,"/","/","GLOBAL","SEMANTIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Variable","CHARACTER",partie1_2,$3,"/","/",empla,"SEMANTIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Variable","CHARACTER",partie1_2,$3,"/","/",class_emplacement,"SEMANTIQUE");
                     }
-                    if (strcmp(getType($2,emp,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
-                      if(strcmp(getType($2,emp,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
+                    if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                      if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                         YYABORT;
                       }
                     }
-                    if(strcmp(getType($2,emp,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                      if (!verif_char($2,emp,"Variable",partie1_2)) {
+                    if(strcmp(getType($2,current_class_level,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
+                      if (!verif_char($2,current_class_level,"Variable",partie1_2)) {
                         printf("\nFile '%s', line %d, character %d: semantic error : String too long.\n",file_name,nb_line,nb_character);
                         YYABORT;
                       }
@@ -1521,15 +1584,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* LISTVARTAB: vg idf kwDIMENSION po integer pf LISTVAR 
                   { 
-                    if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (emp==0)
-                      miseajour($2,"Vecteur",savet,"/",$5,$5,"-1","GLOBAL","SYNTAXIQUE");
+                    if (current_class_level==0)
+                      miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1","GLOBAL","SYNTAXIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Vecteur",savet,"/",$5,$5,"-1",empla,"SYNTAXIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1",class_emplacement,"SYNTAXIQUE");
                     }
                     if(atof($5)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1543,15 +1606,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
 /* LISTVARTABCHAR: vg idf MULCHAR kwDIMENSION po integer pf LISTVARTABCHAR 
                   { 
                     sprintf(taille,"%d",atoi($6)*atoi($3));
-                    if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (emp==0)
+                    if (current_class_level==0)
                       miseajour($2,"Vecteur","CHARACTER","/",taille,$6,"-1","GLOBAL","SYNTAXIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Vecteur","CHARACTER","/",taille,$6,"-1",empla,"SYNTAXIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Vecteur","CHARACTER","/",taille,$6,"-1",class_emplacement,"SYNTAXIQUE");
                     } 
                     if(atof($6)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1566,15 +1629,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
 /* LISTVARMAT: vg idf kwDIMENSION po integer vg integer pf LISTVAR 
                   { 
                     sprintf(taille,"%d",atoi($5)*atoi($7));
-                    if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (emp==0)
-                      miseajour($2,"Matrice",savet,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
+                    if (current_class_level==0)
+                      miseajour($2,"Matrice",current_type,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Matrice",savet,"/",taille,$5,$7,empla,"SYNTAXIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Matrice",current_type,"/",taille,$5,$7,class_emplacement,"SYNTAXIQUE");
                     } 
                     if(atof($5)<1 || atof($7)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1589,15 +1652,15 @@ RETURN: kwRETURN EXPRESSION_ITEM
 /* LISTVARMATCHAR: vg idf MULCHAR kwDIMENSION po integer vg integer pf LISTVARMATCHAR 
                   { 
                     sprintf(taille,"%d",atoi($6)*atoi($8)*atoi($3));
-                    if (idf_existe($2,emp,"Variable") || idf_existe($2,emp,"Vecteur") || idf_existe($2,emp,"Matrice")) {
+                    if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (emp==0)
+                    if (current_class_level==0)
                       miseajour($2,"Matrice","CHARACTER","/",taille,$6,$8,"GLOBAL","SYNTAXIQUE");
                     else {
-                      sprintf(empla,"LOCAL %d",emp); 
-                      miseajour($2,"Matrice","CHARACTER","/",taille,$6,$8,empla,"SYNTAXIQUE");
+                      sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                      miseajour($2,"Matrice","CHARACTER","/",taille,$6,$8,class_emplacement,"SYNTAXIQUE");
                     } 
                     if(atof($6)<1 || atof($8)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1625,12 +1688,12 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* AFFECTATION: idf aff EXPRESSION_ITEM  
                   { 
-                    if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                    if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                       YYABORT;
                     }
                     diviserChaine($3,partie1_1,partie1_2);
-                    strcpy(typeIDF,getType($1,emp,"Variable"));
+                    strcpy(typeIDF,getType($1,current_class_level,"Variable"));
                     if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
                       if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                           printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -1638,7 +1701,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       }
                     }
                     if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                      if (!verif_char($1,emp,"Variable",partie1_2)) {
+                      if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
                         printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
                         YYABORT;
                       }
@@ -1649,11 +1712,11 @@ RETURN: kwRETURN EXPRESSION_ITEM
            | idf po INDEX pf aff EXPRESSION_ITEM
                   { 
                     diviserChaine($6,partie1_1,partie1_2);
-                    if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
+                    if (!idf_existe($1,current_class_level,"Vecteur") && !idf_existe($1,current_class_level,"Parametre")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                       YYABORT;
                     }
-                    strcpy(typeIDF,getType($1,emp,"Vecteur"));
+                    strcpy(typeIDF,getType($1,current_class_level,"Vecteur"));
                     if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
                       if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -1661,7 +1724,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       }
                     }
                     if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                      if (!verif_char($1,emp,"Variable",partie1_2)) {
+                      if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
                         printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
                         YYABORT;
                       }
@@ -1674,11 +1737,11 @@ RETURN: kwRETURN EXPRESSION_ITEM
            | idf po INDEX vg INDEX pf aff EXPRESSION_ITEM
                   { 
                     diviserChaine($8,partie1_1,partie1_2);
-                    if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
+                    if (!idf_existe($1,current_class_level,"Matrice") && !idf_existe($1,current_class_level,"Parametre")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                       YYABORT;
                     }
-                    strcpy(typeIDF,getType($1,emp,"Matrice"));
+                    strcpy(typeIDF,getType($1,current_class_level,"Matrice"));
                     if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
                       if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -1686,7 +1749,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       }
                     }
                     if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                      if (!verif_char($1,emp,"Variable",partie1_2)) {
+                      if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
                         printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
                         YYABORT;
                       }
@@ -1785,24 +1848,24 @@ RETURN: kwRETURN EXPRESSION_ITEM
                   } 
           | idf  
                   { 
-                    if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                    if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                       YYABORT;
                     }
                     strcpy(ch,"-");
                     strcat(ch,$1);
-                    if (idf_existe($1,emp,"Variable")) strcpy(cat,getType($1,emp,"Variable"));
-                    if (idf_existe($1,emp,"Parametre")) strcpy(cat,getType($1,emp,"Parametre"));
+                    if (idf_existe($1,current_class_level,"Variable")) strcpy(cat,getType($1,current_class_level,"Variable"));
+                    if (idf_existe($1,current_class_level,"Parametre")) strcpy(cat,getType($1,current_class_level,"Parametre"));
                     strcat(cat,ch);
                     $$=strdup(cat);
                   }      
           | idf po INDEX pf 
                   {
-                    if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
+                    if (!idf_existe($1,current_class_level,"Vecteur") && !idf_existe($1,current_class_level,"Parametre")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                       YYABORT;
                     }
-                    if (!verif_index($1,emp,"Vecteur",$3,"Ligne")) {
+                    if (!verif_index($1,current_class_level,"Vecteur",$3,"Ligne")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Index out of range '%s(%s)'.\n",file_name,nb_line,nb_character,$1,$3);
                       YYABORT;
                     }
@@ -1810,18 +1873,18 @@ RETURN: kwRETURN EXPRESSION_ITEM
                     strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);
                     strcat(ch,tab);
                     strcpy(tab," ");
-                    if (idf_existe($1,emp,"Vecteur")) strcpy(cat,getType($1,emp,"Vecteur"));
-                    if (idf_existe($1,emp,"Parametre")) strcpy(cat,getType($1,emp,"Parametre"));
+                    if (idf_existe($1,current_class_level,"Vecteur")) strcpy(cat,getType($1,current_class_level,"Vecteur"));
+                    if (idf_existe($1,current_class_level,"Parametre")) strcpy(cat,getType($1,current_class_level,"Parametre"));
                     strcat(cat,ch);
                     $$=strdup(cat);
                   }
           | idf po INDEX vg INDEX pf
                   {
-                    if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
+                    if (!idf_existe($1,current_class_level,"Matrice") && !idf_existe($1,current_class_level,"Parametre")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                       YYABORT;
                     }
-                    if (!verif_index($1,emp,"Matrice",$3,"Ligne") || !verif_index($1,emp,"Matrice",$5,"Colonne")) {
+                    if (!verif_index($1,current_class_level,"Matrice",$3,"Ligne") || !verif_index($1,current_class_level,"Matrice",$5,"Colonne")) {
                       printf("\nFile '%s', line %d, character %d: semantic error : Index out of range '%s(%s,%s)'.\n",file_name,nb_line,nb_character,$1,$3,$5);
                       YYABORT;
                     }
@@ -1829,8 +1892,8 @@ RETURN: kwRETURN EXPRESSION_ITEM
                     strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);strcat(tab,$5);strcat(tab,$6);
                     strcat(ch,tab);
                     strcpy(tab," ");
-                    if (idf_existe($1,emp,"Matrice")) strcpy(cat,getType($1,emp,"Matrice"));
-                    if (idf_existe($1,emp,"Parametre")) strcpy(cat,getType($1,emp,"Parametre"));
+                    if (idf_existe($1,current_class_level,"Matrice")) strcpy(cat,getType($1,current_class_level,"Matrice"));
+                    if (idf_existe($1,current_class_level,"Parametre")) strcpy(cat,getType($1,current_class_level,"Parametre"));
                     strcat(cat,ch);
                     $$=strdup(cat);
                   }             
@@ -1866,11 +1929,11 @@ RETURN: kwRETURN EXPRESSION_ITEM
 
 /* INDEX: idf 
         { 
-          if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+          if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
             printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
             YYABORT;
           }
-          strcpy(typeIDF,getType($1,emp,"Variable"));
+          strcpy(typeIDF,getType($1,current_class_level,"Variable"));
           if(strcmp(typeIDF,"INTEGER")!=0){
             printf("\nFile '%s', line %d, character %d: semantic error : Unexpected index type '%s'.\n",file_name,nb_line,nb_character,$1);
             YYABORT;
@@ -2028,7 +2091,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
 
 /* MEMBREIDF : idf                      
                 { 
-                  if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+                  if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                     printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     YYABORT;
                   }
@@ -2036,7 +2099,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                 }
           | idf po INDEX pf 
                 { 
-                  if (!idf_existe($1,emp,"Vecteur") && !idf_existe($1,emp,"Parametre")) {
+                  if (!idf_existe($1,current_class_level,"Vecteur") && !idf_existe($1,current_class_level,"Parametre")) {
                     printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     YYABORT;
                   }
@@ -2044,7 +2107,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                 }
           | idf po INDEX vg INDEX pf 
                 { 
-                  if (!idf_existe($1,emp,"Matrice") && !idf_existe($1,emp,"Parametre")) {
+                  if (!idf_existe($1,current_class_level,"Matrice") && !idf_existe($1,current_class_level,"Parametre")) {
                     printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                     YYABORT;
                   }
@@ -2096,7 +2159,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
 
 /* CALLPROC: idf aff kwCALL idf po PARAMETRE pf 
             { 
-              if (!idf_existe($1,emp,"Variable") && !idf_existe($1,emp,"Parametre")) {
+              if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
                 printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
                 YYABORT;
               }
@@ -2104,7 +2167,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                 printf("\nFile '%s', line %d, character %d: semantic error : Undeclared function '%s'.\n",file_name,nb_line,nb_character,$4);
                 YYABORT;
               }
-              strcpy(typeIDF,getType($1,emp,"Variable"));
+              strcpy(typeIDF,getType($1,current_class_level,"Variable"));
               if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"/")!=0) {
                 if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
                   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -2115,11 +2178,11 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                 printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
                 YYABORT;
               }
-              if (emp==0)
+              if (current_class_level==0)
                   search($4,"Idf","/","/","/","/","/","GLOBAL",3);
                 else {
-                  sprintf(empla,"LOCAL %d",emp); 
-                  search($4,"Idf","/","/","/","/","/",empla,3);
+                  sprintf(class_emplacement,"LOCAL %d",current_class_level); 
+                  search($4,"Idf","/","/","/","/","/",class_emplacement,3);
               }
             }
 ; */
