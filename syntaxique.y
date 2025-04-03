@@ -40,7 +40,7 @@ char tab[20];
     char* str;
 }
 
-%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH
+%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE
 ;
 
 %token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
@@ -135,12 +135,15 @@ TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION
     | OBJECT_TYPE 
 ;
 
-BASE_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
-         | kwFLOAT   {$$=strdup($1);strcpy(savet,$1);}
-         | kwDOUBLE  {$$=strdup($1);strcpy(savet,$1);}
+BASE_TYPE: NUMERIC_TYPE {$$=strdup($1);}
          | kwBOOLEAN {$$=strdup($1);strcpy(savet,$1);}
          | kwCHAR    {$$=strdup($1);strcpy(savet,$1);}
          | kwVOID    {$$=strdup($1);strcpy(savet,$1);}
+;
+
+NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(savet,$1);}
+            | kwFLOAT   {$$=strdup($1);strcpy(savet,$1);}
+            | kwDOUBLE  {$$=strdup($1);strcpy(savet,$1);}
 ;
 
 OBJECT_TYPE: IDF
@@ -159,9 +162,12 @@ OBJECT_ACCESS_SEQUENCE: OBJECT_ACCESS_SUFFIX
                       | OBJECT_ACCESS_SEQUENCE pt OBJECT_ACCESS_SUFFIX
 ;
 
-OBJECT_ACCESS_SUFFIX: OBJECT_TYPE 
+OBJECT_ACCESS_SUFFIX: OBJECT_NAME 
                     | OBJECT_ACCESS_METHOD
-;   
+;  
+
+OBJECT_NAME: IDF
+;
 
 OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                   { 
@@ -1060,28 +1066,51 @@ TYPEfor: kwINT
        | kwCHAR
 ; 
 
-INIT : TYPEfor IDF OPTIONAL_ASSIGN
-     |
+COUNTER_INIT: TYPEfor IDF OPTIONAL_ASSIGN
+            | OBJECT_ACCESS OPTIONAL_ASSIGN
+            |
 
-FOR_LOOP_SIGNATURE: po TYPEfor IDF dp IDF pf 
-                  | po INIT pvg CONDITION pvg INCREMENT pf
+FOR_LOOP_SIGNATURE: po TYPEfor IDF dp OBJECT_ACCESS pf 
+                  | po OBJECT_ACCESS dp OBJECT_ACCESS pf
+                  | po COUNTER_INIT pvg CONDITION pvg INCREMENT pf
 ;
 
 // --------------------------------- WHILE LOOP BLOCK -----------------------------------------------------------------------------------
 R1_1_WHILE: kwWHILE CONDITION 
+                {
+                  // fin_dowhile=qc;
+                  // deb_dowhile=qc;
+                  // remplir_quad("BNZ"," ",$2,"<vide>");
+                }
 ;
 
-R2_1_WHILE: kwWHILE EXPRESSION
+R2_1_WHILE: kwWHILE EXPRESSION_ITEM
+                {
+                  // diviserChaine($2,partie1_1,partie1_2);
+                  // fin_dowhile=qc;
+                  // remplir_quad("BNZ"," ",partie1_1,"<vide>");
+                }
 ;
 
-WHILE_LOOP: R1_1_WHILE acco INSTRUCTION_LIST accf |
-            R2_1_WHILE  acco INSTRUCTION_LIST accf
+WHILE_LOOP: R1_1_WHILE acco INSTRUCTION_LIST accf 
+                {
+                  // sprintf(i,"%d",deb_dowhile);
+                  // remplir_quad("BR",i,"<vide>","<vide>");
+                  // sprintf(i,"%d",qc);
+                  // mise_jr_quad(fin_dowhile,2,i);
+                }
+          | R2_1_WHILE acco INSTRUCTION_LIST accf
+                {
+                  // sprintf(i,"%d",deb_dowhile);
+                  // remplir_quad("BR",i,"<vide>","<vide>");
+                  // sprintf(i,"%d",qc);
+                  // mise_jr_quad(fin_dowhile,2,i);
+                }
 ;
-
 // --------------------------------- DO WHILE LOOP BLOCK -----------------------------------------------------------------------------------
 
-DOWHILE_LOOP: kwDO acco INSTRUCTION_LIST accf kwWHILE R1_1_WHILE |
-              kwDO acco INSTRUCTION_LIST accf kwWHILE R2_1_WHILE
+DOWHILE_LOOP: kwDO acco INSTRUCTION_LIST accf R1_1_WHILE 
+            | kwDO acco INSTRUCTION_LIST accf R2_1_WHILE
 ; 
 
 // --------------------------------- SWITCH CASE BLOCK -----------------------------------------------------------------------------------
