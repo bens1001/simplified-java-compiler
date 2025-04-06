@@ -280,10 +280,10 @@ ARGUMENTS:
 
 OPTIONAL_MULTIDIMENSION: dimo INDEX dimf OPTIONAL_MULTIDIMENSION
                          {
-                           // if (atof($2)<1){
-                           //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
-                           //   YYABORT;
-                           // }
+                           if (atof($2)<1){
+                             printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Negative dimension of vector.\n",file_name,nb_line,nb_character,yylval.str);
+                             YYABORT;
+                           }
                             strcat(tab,$1);
                             strcat(tab,$2);
                             strcat(tab,$3);
@@ -390,10 +390,6 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
               //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
               //   miseajour($2,"Vecteur",$1,"/",$4,$4,"/",class_emplacement,"SYNTAXIQUE");
               // }
-              // if(atof($5)<1){
-              //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
-              //   YYABORT;
-              // }
               // remplir_quad("BOUNDS","1",$5,"<vide>");
               // remplir_quad("ADEC",$2,"<vide>","<vide>");
 
@@ -432,10 +428,6 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
               // else {
               //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
               //   miseajour($2,"Matrice",$1,"/",taille,$4,$6,class_emplacement,"SYNTAXIQUE"); 
-              // }
-              // if(atof($4)<1 || atof($6)<1){
-              //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
-              //   YYABORT;
               // }
               // remplir_quad("BOUNDS","1",$4,"<vide>");
               // remplir_quad("BOUNDS","2",$6,"<vide>");
@@ -522,10 +514,6 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
                     //   miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1",class_emplacement,"SYNTAXIQUE");
                     // }
-                    // if(atof($5)<1){
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
-                    //   YYABORT;
-                    // }
                     // remplir_quad("BOUNDS","1",$5,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
 
@@ -572,10 +560,6 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
                     //   miseajour($2,"Matrice",current_type,"/",taille,$5,$7,class_emplacement,"SYNTAXIQUE");
                     // } 
-                    // if(atof($5)<1 || atof($7)<1){
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
-                    //   YYABORT;
-                    // }
                     // remplir_quad("BOUNDS","1",$5,"<vide>");
                     // remplir_quad("BOUNDS","2",$7,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
