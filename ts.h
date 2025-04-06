@@ -279,15 +279,7 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
                 strcmp(current->code, code) == 0 &&
                 strcmp(current->emplacement, emplacement) == 0)
             {
-
-                if (strcmp(type, current->type) == 0)
-                {
-                    miseajour(entite, "Message de sortie", "-1", val, taille, ligne, colonne, emplacement, "SYNTAXIQUE");
-                }
-                else
-                {
-                    miseajour(entite, "Appel fonction", type, val, taille, ligne, colonne, emplacement, "SYNTAXIQUE");
-                }
+                miseajour(entite, "Output Message", "-1", val, taille, ligne, colonne, emplacement, "SYNTAXIQUE");
             }
             current = current->next;
         }
@@ -296,13 +288,13 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
     }
 }
 
-bool idf_existe(char entite[], int emp, char code[])
+bool idf_existe(char entite[], int current_class_level, char code[])
 {
     char emplacement[20];
-    if (emp == 0)
-        strcpy(emplacement, "GLOBAL");
-    else if (emp > 0)
-        sprintf(emplacement, "LOCAL %d", emp);
+    if (current_class_level == 0)
+        strcpy(emplacement, "MAIN");
+    else if (current_class_level > 0)
+        sprintf(emplacement, "CLASS %d", current_class_level);
 
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -311,7 +303,7 @@ bool idf_existe(char entite[], int emp, char code[])
     {
         bool name_match = (strcmp(current->name, entite) == 0);
         bool code_match = (strcmp(current->code, code) == 0);
-        bool emp_match = (emp == -1) || (strcmp(current->emplacement, emplacement) == 0);
+        bool emp_match = (current_class_level == -1) || (strcmp(current->emplacement, emplacement) == 0);
 
         if (name_match && code_match && emp_match)
             return true;
@@ -320,13 +312,13 @@ bool idf_existe(char entite[], int emp, char code[])
     return false;
 }
 
-char *getType(char entite[], int emp, char code[])
+char *getType(char entite[], int current_class_level, char code[])
 {
     char emplacement[20];
-    if (emp == 0)
-        strcpy(emplacement, "GLOBAL");
-    else if (emp > 0)
-        sprintf(emplacement, "LOCAL %d", emp);
+    if (current_class_level == 0)
+        strcpy(emplacement, "MAIN");
+    else if (current_class_level > 0)
+        sprintf(emplacement, "CLASS %d", current_class_level);
 
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -335,7 +327,7 @@ char *getType(char entite[], int emp, char code[])
     {
         bool name_match = (strcmp(current->name, entite) == 0);
         bool code_match = (strcmp(current->code, code) == 0);
-        bool emp_match = (emp == -1) || (strcmp(current->emplacement, emplacement) == 0);
+        bool emp_match = (current_class_level == -1) || (strcmp(current->emplacement, emplacement) == 0);
 
         if (name_match && code_match && emp_match)
             return current->type;
@@ -344,13 +336,13 @@ char *getType(char entite[], int emp, char code[])
     return "NULL";
 }
 
-bool verif_index(char entite[], int emp, char code[], char index[], char check[])
+bool verif_index(char entite[], int current_class_level, char code[], char index[], char check[])
 {
     char emplacement[20];
-    if (emp == 0)
-        strcpy(emplacement, "GLOBAL");
+    if (current_class_level == 0)
+        strcpy(emplacement, "MAIN");
     else
-        sprintf(emplacement, "LOCAL %d", emp);
+        sprintf(emplacement, "CLASS %d", current_class_level);
 
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -372,13 +364,13 @@ bool verif_index(char entite[], int emp, char code[], char index[], char check[]
     return false;
 }
 
-bool verif_char(char entite[], int emp, char code[], char check[])
+bool verif_char(char entite[], int current_class_level, char code[], char check[])
 {
     char emplacement[20];
-    if (emp == 0)
-        strcpy(emplacement, "GLOBAL");
+    if (current_class_level == 0)
+        strcpy(emplacement, "MAIN");
     else
-        sprintf(emplacement, "LOCAL %d", emp);
+        sprintf(emplacement, "CLASS %d", current_class_level);
 
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -486,6 +478,80 @@ char *stringify_emplacement(int current_class_level)
         sprintf(class_emplacement, "CLASS %d", current_class_level);
     }
     return class_emplacement;
+}
+
+char *parseArrayDimensions(char *str)
+{
+    static char result[20];
+
+    int dimensions[10];
+    int dimCount = 0;
+    int definedCount = 0;
+    int hasEmptyDimension = 0;
+    const char *ptr = str;
+
+    // Parse the string and extract dimensions
+    while (*ptr)
+    {
+        if (*ptr == '[')
+        {
+            ptr++;
+            if (*ptr == ']')
+            {
+                dimensions[dimCount++] = -1;
+                hasEmptyDimension = 1;
+                ptr++;
+            }
+            else
+            {
+                int size = 0;
+                while (*ptr >= '0' && *ptr <= '9')
+                {
+                    size = size * 10 + (*ptr - '0');
+                    ptr++;
+                }
+                dimensions[dimCount++] = size;
+                definedCount++;
+            }
+        }
+        else
+        {
+            ptr++;
+        }
+    }
+
+    if (dimCount == 0)
+    {
+        strcpy(result, "/");
+        return result;
+    }
+
+    if (definedCount == 0)
+    {
+        strcpy(result, "dynamic");
+        return result;
+    }
+
+    int totalSize = 1;
+    int i;
+    for (i = 0; i < dimCount; i++)
+    {
+        if (dimensions[i] != -1)
+        {
+            totalSize *= dimensions[i];
+        }
+    }
+
+    if (hasEmptyDimension && definedCount >= 1)
+    {
+        snprintf(result, sizeof(result), "%d+", totalSize);
+    }
+    else
+    {
+        snprintf(result, sizeof(result), "%d", totalSize);
+    }
+
+    return result;
 }
 
 void liberer_table()

@@ -13,8 +13,10 @@ char class_emplacement[20];
 int current_class_level=0;
 char typeIDF[20];
 char current_type[20];
-int param=0;
-char para[20];
+int parameter_counter=0;
+char parameters_value[20];
+char string_size[20];
+char string_message[20];
 
 char i[20];
 int deb_else;
@@ -121,13 +123,15 @@ ENTITY_LIST_NONEMPTY: ENTITY_ITEM
 ENTITY_ITEM: TYPE IDF ENTITY_ITEM_SUFFIX 
                 {
                   strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                  miseajour($2, $3, $1, "-1", "-1", "-1", "-1", class_emplacement, "SYNTAXIQUE");
+                  if (strcmp($3,"Object Method")==0) sprintf(parameters_value,"%d",parameter_counter); 
+                  else strcpy(parameters_value,parseArrayDimensions($1));
+                  miseajour($2, $3, $1, "-1", parameters_value, "/", "/", class_emplacement, "SYNTAXIQUE");
                 }
            | CONSTRUCTOR
 ;
 
-ENTITY_ITEM_SUFFIX: METHOD_SUFFIX {$$=strdup("Class Method");}
-                  | VARIABLE_SUFFIX pvg {$$ = strdup("Class Attribute");}
+ENTITY_ITEM_SUFFIX: METHOD_SUFFIX {$$=strdup("Object Method");}
+                  | VARIABLE_SUFFIX pvg {$$ = strdup("Object Attribute");}
 ;
 
 // -------------------------- CONSTRUCTOR BLOCK ---------------------------------------------------------------------------------
@@ -143,11 +147,12 @@ CONSTRUCTOR_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
 ;
 // -------------------------- METHOD BLOCK ---------------------------------------------------------------------------------
 
-METHOD_SUFFIX: po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
+METHOD_SUFFIX: po {parameter_counter = 0;} METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
 ;
 
 METHOD_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
                         {
+                            parameter_counter++;
                             strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
                             miseajour($2, "Parameter", $1, "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
                         }
@@ -238,7 +243,7 @@ OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                     //     YYABORT;
                     //   }
                     // }
-                    // if(!verif_param($4,param)){
+                    // if(!verif_param($4,parameter_counter)){
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
                     //   YYABORT;
                     // }
@@ -249,7 +254,7 @@ OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                     //     search($4,"Idf","/","/","/","/","/",class_emplacement,3);
                     // }
                     strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                    miseajour($1, "Object Method", "-1", "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                    miseajour($1, "Method Call", "-1", "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
                     $$=strdup($1);
                   }
 ;
@@ -263,11 +268,11 @@ ARGUMENT_LIST: ARGUMENTS
 ARGUMENTS:
       EXPRESSION_ITEM
       { 
-        //  param++;
+        //  parameter_counter++;
       }
     | ARGUMENTS vg EXPRESSION_ITEM
       { 
-         // param++
+         // parameter_counter++
       }
 ;
 
@@ -612,7 +617,7 @@ INSTRUCTION_ITEM: OUTPUT    pvg
                 | LOOP_BLOCK     
                 | SWITCH_CASE_BLOCK 
                 | TRY_CATCH_BLOCK
-                | OBJECT_ACCESS pvg   {param=0;}
+                | OBJECT_ACCESS pvg  
                 | RETURN    pvg
 ; 
 
@@ -636,11 +641,15 @@ PRINT: kwPRINTLN
 
 STRING_MESSAGE: STRING MESSAGE_CONCATENATION
                   {
-                    search($1,"IDF","String","/","-1","/","/","/",3);
+                    sprintf(string_size,"%d",strlen($1)-2);
+	                  sprintf(string_message,"char[%d]",strlen($1)-2);
+                    search($1,"IDF",string_message,"/",string_size,"/","/","/",3);
                   }
               | STRING
                   {
-                    search($1,"IDF","String","/","-1","/","/","/",3);
+                    sprintf(string_size,"%d",strlen($1)-2);
+	                  sprintf(string_message,"char[%d]",strlen($1)-2);
+                    search($1,"IDF",string_message,"/",string_size,"/","/","/",3);
                   }
               | VARIABLE_MESSAGE opADD STRING_MESSAGE
                   {}
@@ -1232,9 +1241,9 @@ RETURN: kwRETURN EXPRESSION_ITEM
               printf("\nFile '%s', line %d, character %d: semantic error : Double function declaration '%s'.\n",file_name,nb_line,nb_character,$3);
               YYABORT;
             }
-            sprintf(para,"%d",param); 
-            miseajour($3,"Fonction",$1,"-1",para,"/","/","-1","SYNTAXIQUE");
-            param=0;
+            sprintf(parameters_value,"%d",parameter_counter); 
+            miseajour($3,"Fonction",$1,"-1",parameters_value,"/","/","-1","SYNTAXIQUE");
+            parameter_counter=0;
           }
 ; */
 
@@ -1248,7 +1257,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
           { 
             sprintf(class_emplacement,"LOCAL %d",current_class_level);
             miseajour($1,"Parametre","/","/","/","/","/",class_emplacement,"SYNTAXIQUE");
-            param++;
+            parameter_counter++;
           }
      | 
 ; */
@@ -1257,7 +1266,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
           { 
             sprintf(class_emplacement,"LOCAL %d",current_class_level);
             miseajour($2,"Parametre","/","/","/","/","/",class_emplacement,"SYNTAXIQUE");
-            param++;
+            parameter_counter++;
           }
     |
 ; */
@@ -1269,7 +1278,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
         | ENTREE      INSTSPROC      
         | SORTIE      INSTSPROC 
         | AFFECTATION INSTSPROC   
-        | CALLPROC    INSTSPROC     {param=0;}
+        | CALLPROC    INSTSPROC     {parameter_counter=0;}
         | IF_ELSE_BLOCK    INSTSPROCBLOC
         | BOUCLE      INSTSPROCBLOC
         | RETOUR
@@ -1281,7 +1290,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
          | pvg AFFECTATION  INSTSPROC
          | pvg IF_ELSE_BLOCK     INSTSPROCBLOC
          | pvg BOUCLE       INSTSPROCBLOC
-         | pvg CALLPROC     INSTSPROC     {param=0;}
+         | pvg CALLPROC     INSTSPROC     {parameter_counter=0;}
          | pvg RETOUR
 ;  */
 
@@ -1291,7 +1300,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
              | AFFECTATION  INSTSPROC
              | IF_ELSE_BLOCK     INSTSPROCBLOC
              | BOUCLE       INSTSPROCBLOC
-             | CALLPROC     INSTSPROC     {param=0;}
+             | CALLPROC     INSTSPROC     {parameter_counter=0;}
              | RETOUR
 ; */
 
@@ -1683,7 +1692,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
      | AFFECTATION pvg 
      | IF_ELSE_BLOCK        
      | BOUCLE     
-     | CALLPROC    pvg   {param=0;}
+     | CALLPROC    pvg   {parameter_counter=0;}
 ;  */
 
 /* AFFECTATION: idf aff EXPRESSION_ITEM  
@@ -2174,7 +2183,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                   YYABORT;
                 }
               }
-              if(!verif_param($4,param)){
+              if(!verif_param($4,parameter_counter)){
                 printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
                 YYABORT;
               }
@@ -2189,14 +2198,14 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
 
 /* PARAMETRE: MEMBREIDF PARAMETRES
             {
-              param++;
+              parameter_counter++;
             }
          | 
 ; */
 
 /* PARAMETRES: vg MEMBREIDF PARAMETRES
             {
-              param++;
+              parameter_counter++;
             }
           |
 ; */

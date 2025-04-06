@@ -2,10 +2,10 @@ import package.subpackage.ClassName;
 
 class Person {
     // Attributs de la classe
-    int age;
+    int[] age;
     char gender; // 'M' pour masculin, 'F' pour féminin
     boolean isStudent;
-    int[] grades; // Tableau pour stocker les notes
+    int[][50][][275] grades; // Tableau pour stocker les notes
 
     // Constructeur
     Person(int age, char gender, boolean isStudent, int[] grades) {
@@ -16,7 +16,7 @@ class Person {
     }
 
     // Méthode pour afficher les informations
-    void displayInfo() {
+    void displayInfo(int[] test) {
         System.out.println("Age: " + age);
         System.out.println("Gender: " + gender);
         System.out.println("Student: " + isStudent);

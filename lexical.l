@@ -9,7 +9,8 @@
 	extern char *file_name;
 	int precision;
 	extern YYSTYPE yylval;
-	char x[20];
+	extern char string_size[20];
+	extern char string_message[20];
 	extern int current_class_level;
 %}
 letter [a-zA-Z]
@@ -294,8 +295,9 @@ exception {letter}*"Exception"
 {string} {
 	ECHO;
 	nb_character += strlen(yytext);
-	sprintf(x,"%d",strlen(yytext)-2);
-	search(yytext,"IDF","String","/",x,"/","/","/",0);
+	sprintf(string_size,"%d",strlen(yytext)-2);
+	sprintf(string_message,"char[%d]",strlen(yytext)-2);
+	search(yytext,"IDF",string_message,"/",string_size,"/","/","/",0);
 	yylval.str=strdup(yytext);
 	return STRING;
 }
@@ -309,8 +311,8 @@ exception {letter}*"Exception"
 		if (current_class_level==0)
 			search(yytext,"IDF","-1","-1","-1","-1","-1","MAIN",0);
 		else {
-			sprintf(x,"CLASS %d",current_class_level); 
-			search(yytext,"IDF","-1","-1","-1","-1","-1",x,0);
+			sprintf(string_message,"CLASS %d",current_class_level); 
+			search(yytext,"IDF","-1","-1","-1","-1","-1",string_message,0);
 		}
 		yylval.str=strdup(yytext);
 		return IDF;
