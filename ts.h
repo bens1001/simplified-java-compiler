@@ -17,7 +17,7 @@ unsigned long hash(const char *str)
     return hash_val % HASH_SIZE;
 }
 
-// Definition des structures de données
+// Definition of the data structures
 typedef struct ElementNode
 {
     int state;
@@ -26,9 +26,9 @@ typedef struct ElementNode
     char type[20];
     char val[20];
     char taille[20];
-    char ligne[20];
-    char colonne[20];
-    char emplacement[20];
+    char dimensions[20];
+    char num_params[20];
+    char scope[256];
     char update[20];
     struct ElementNode *next;
     struct ElementNode *fifo_next;
@@ -70,7 +70,7 @@ typedef struct SymbolTables
 SymbolTables table;
 extern char save[20];
 
-// Initialisation de l'état des cases des tables des symboles
+// Initialize symbol table arrays and FIFO pointers
 void initialisation()
 {
     table.tab = (ElementNode **)calloc(HASH_SIZE, sizeof(ElementNode *));
@@ -83,13 +83,13 @@ void initialisation()
     table.separator_fifo_head = table.separator_fifo_tail = NULL;
 }
 
-// Insertion des entités lexicales dans les tables des symboles
-void inserer(char entite[], char code[], char type[], char val[], char taille[], char ligne[], char colonne[], char emplacement[], int y)
+// Insertion of lexical entities into the symbol table
+void inserer(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], char update[], int y)
 {
     switch (y)
     {
     case 0:
-    { // insertion dans la table des IDF et CONST
+    { // Insertion into the table for identifiers and constants
         int hash_idx = hash(entite);
         ElementNode *newNode = (ElementNode *)malloc(sizeof(ElementNode));
         strcpy(newNode->name, entite);
@@ -97,10 +97,10 @@ void inserer(char entite[], char code[], char type[], char val[], char taille[],
         strcpy(newNode->type, strcmp(type, "-1") ? type : " ");
         strcpy(newNode->val, strcmp(val, "-1") ? val : " ");
         strcpy(newNode->taille, strcmp(taille, "-1") ? taille : " ");
-        strcpy(newNode->ligne, strcmp(ligne, "-1") ? ligne : " ");
-        strcpy(newNode->colonne, strcmp(colonne, "-1") ? colonne : " ");
-        strcpy(newNode->emplacement, strcmp(emplacement, "-1") ? emplacement : " ");
-        strcpy(newNode->update, "LEXICAL");
+        strcpy(newNode->dimensions, strcmp(dimensions, "-1") ? dimensions : "0");
+        strcpy(newNode->num_params, strcmp(num_params, "-1") ? num_params : "0");
+        strcpy(newNode->scope, strcmp(scope, "-1") ? scope : "GLOBAL");
+        strcpy(newNode->update, update);
 
         newNode->next = table.tab[hash_idx];
         table.tab[hash_idx] = newNode;
@@ -119,7 +119,7 @@ void inserer(char entite[], char code[], char type[], char val[], char taille[],
     }
 
     case 1:
-    { // insertion dans la table des mots clés
+    { // Insertion into the table for keywords
         int hash_idx = hash(entite);
         KeywordNode *newNode = (KeywordNode *)malloc(sizeof(KeywordNode));
         strcpy(newNode->name, entite);
@@ -142,7 +142,7 @@ void inserer(char entite[], char code[], char type[], char val[], char taille[],
     }
 
     case 2:
-    { // insertion dans la table des séparateurs
+    { // Insertion into the table for separators
         int hash_idx = hash(entite);
         SeparatorNode *newNode = (SeparatorNode *)malloc(sizeof(SeparatorNode));
         strcpy(newNode->name, entite);
@@ -166,36 +166,7 @@ void inserer(char entite[], char code[], char type[], char val[], char taille[],
     }
 }
 
-void miseajour(char entite[], char code[], char type[], char val[], char taille[], char ligne[], char colonne[], char emplacement[], char update[])
-{
-    int hash_idx = hash(entite);
-    ElementNode *current = table.tab[hash_idx];
-
-    while (current != NULL)
-    {
-        if (strcmp(current->name, entite) == 0 &&
-            (strcmp(emplacement, "-1") == 0 || strcmp(current->emplacement, emplacement) == 0))
-        {
-
-            if (strcmp(code, "-1") != 0)
-                strcpy(current->code, code);
-            if (strcmp(type, "-1") != 0)
-                strcpy(current->type, type);
-            if (strcmp(val, "-1") != 0)
-                strcpy(current->val, val);
-            if (strcmp(taille, "-1") != 0)
-                strcpy(current->taille, taille);
-            if (strcmp(ligne, "-1") != 0)
-                strcpy(current->ligne, ligne);
-            if (strcmp(colonne, "-1") != 0)
-                strcpy(current->colonne, colonne);
-            strcpy(current->update, update);
-        }
-        current = current->next;
-    }
-}
-
-void search(char entite[], char code[], char type[], char val[], char taille[], char ligne[], char colonne[], char emplacement[], int y)
+void search(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], char update[], int y)
 {
     switch (y)
     {
@@ -208,7 +179,7 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
         while (current != NULL)
         {
             if (strcmp(current->name, entite) == 0 &&
-                strcmp(current->emplacement, emplacement) == 0)
+                strcmp(current->scope, scope) == 0)
             {
                 exists = true;
                 break;
@@ -218,7 +189,7 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
 
         if (!exists)
         {
-            inserer(entite, code, type, val, taille, ligne, colonne, emplacement, 0);
+            inserer(entite, code, type, val, taille, dimensions, num_params, scope, update, 0);
         }
         break;
     }
@@ -241,7 +212,7 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
 
         if (!exists)
         {
-            inserer(entite, code, type, val, taille, ligne, colonne, emplacement, 1);
+            inserer(entite, code, type, val, taille, dimensions, num_params, scope, update, 1);
         }
         break;
     }
@@ -264,37 +235,50 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
 
         if (!exists)
         {
-            inserer(entite, code, type, val, taille, ligne, colonne, emplacement, 2);
-        }
-        break;
-    }
-
-    case 3:
-    {
-        int hash_idx = hash(entite);
-        ElementNode *current = table.tab[hash_idx];
-        while (current != NULL)
-        {
-            if (strcmp(current->name, entite) == 0 &&
-                strcmp(current->code, code) == 0 &&
-                strcmp(current->emplacement, emplacement) == 0)
-            {
-                miseajour(entite, "Output Message", "-1", val, taille, ligne, colonne, emplacement, "SYNTAXIQUE");
-            }
-            current = current->next;
+            inserer(entite, code, type, val, taille, dimensions, num_params, scope, update, 2);
         }
         break;
     }
     }
 }
 
+void miseajour(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], char update[])
+{
+    int hash_idx = hash(entite);
+    ElementNode *current = table.tab[hash_idx];
+
+    while (current != NULL)
+    {
+        if (strcmp(current->name, entite) == 0 &&
+            (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0))
+        {
+            if (strcmp(code, "-1") != 0)
+                strcpy(current->code, code);
+            if (strcmp(type, "-1") != 0)
+                strcpy(current->type, type);
+            if (strcmp(val, "-1") != 0)
+                strcpy(current->val, val);
+            if (strcmp(taille, "-1") != 0)
+                strcpy(current->taille, taille);
+            if (strcmp(dimensions, "-1") != 0)
+                strcpy(current->dimensions, dimensions);
+            if (strcmp(num_params, "-1") != 0)
+                strcpy(current->num_params, num_params);
+            if (strcmp(scope, "-1") != 0)
+                strcpy(current->scope, scope);
+            strcpy(current->update, update);
+        }
+        current = current->next;
+    }
+}
+
 bool idf_existe(char entite[], int current_class_level, char code[])
 {
-    char emplacement[20];
+    char scope[256];
     if (current_class_level == 0)
-        strcpy(emplacement, "MAIN");
-    else if (current_class_level > 0)
-        sprintf(emplacement, "CLASS %d", current_class_level);
+        strcpy(scope, "MAIN");
+    else
+        sprintf(scope, "CLASS %d", current_class_level);
 
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -303,9 +287,9 @@ bool idf_existe(char entite[], int current_class_level, char code[])
     {
         bool name_match = (strcmp(current->name, entite) == 0);
         bool code_match = (strcmp(current->code, code) == 0);
-        bool emp_match = (current_class_level == -1) || (strcmp(current->emplacement, emplacement) == 0);
+        bool scope_match = (current_class_level == -1) || (strcmp(current->scope, scope) == 0);
 
-        if (name_match && code_match && emp_match)
+        if (name_match && code_match && scope_match)
             return true;
         current = current->next;
     }
@@ -314,11 +298,11 @@ bool idf_existe(char entite[], int current_class_level, char code[])
 
 char *getType(char entite[], int current_class_level, char code[])
 {
-    char emplacement[20];
+    char scope[256];
     if (current_class_level == 0)
-        strcpy(emplacement, "MAIN");
-    else if (current_class_level > 0)
-        sprintf(emplacement, "CLASS %d", current_class_level);
+        strcpy(scope, "MAIN");
+    else
+        sprintf(scope, "CLASS %d", current_class_level);
 
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -327,67 +311,67 @@ char *getType(char entite[], int current_class_level, char code[])
     {
         bool name_match = (strcmp(current->name, entite) == 0);
         bool code_match = (strcmp(current->code, code) == 0);
-        bool emp_match = (current_class_level == -1) || (strcmp(current->emplacement, emplacement) == 0);
+        bool scope_match = (current_class_level == -1) || (strcmp(current->scope, scope) == 0);
 
-        if (name_match && code_match && emp_match)
+        if (name_match && code_match && scope_match)
             return current->type;
         current = current->next;
     }
     return "NULL";
 }
 
-bool verif_index(char entite[], int current_class_level, char code[], char index[], char check[])
-{
-    char emplacement[20];
-    if (current_class_level == 0)
-        strcpy(emplacement, "MAIN");
-    else
-        sprintf(emplacement, "CLASS %d", current_class_level);
+// bool verif_index(char entite[], int current_class_level, char code[], char index[], char check[])
+// {
+//     char emplacement[20];
+//     if (current_class_level == 0)
+//         strcpy(emplacement, "MAIN");
+//     else
+//         sprintf(emplacement, "CLASS %d", current_class_level);
 
-    int hash_idx = hash(entite);
-    ElementNode *current = table.tab[hash_idx];
+//     int hash_idx = hash(entite);
+//     ElementNode *current = table.tab[hash_idx];
 
-    while (current != NULL)
-    {
-        if (strcmp(current->name, entite) == 0 &&
-            strcmp(current->code, code) == 0 &&
-            strcmp(current->emplacement, emplacement) == 0)
-        {
+//     while (current != NULL)
+//     {
+//         if (strcmp(current->name, entite) == 0 &&
+//             strcmp(current->code, code) == 0 &&
+//             strcmp(current->emplacement, emplacement) == 0)
+//         {
 
-            if (strcmp(check, "Ligne") == 0)
-                return atof(current->ligne) >= atof(index);
-            if (strcmp(check, "Colonne") == 0)
-                return atof(current->colonne) >= atof(index);
-        }
-        current = current->next;
-    }
-    return false;
-}
+//             if (strcmp(check, "Ligne") == 0)
+//                 return atof(current->ligne) >= atof(index);
+//             if (strcmp(check, "Colonne") == 0)
+//                 return atof(current->colonne) >= atof(index);
+//         }
+//         current = current->next;
+//     }
+//     return false;
+// }
 
-bool verif_char(char entite[], int current_class_level, char code[], char check[])
-{
-    char emplacement[20];
-    if (current_class_level == 0)
-        strcpy(emplacement, "MAIN");
-    else
-        sprintf(emplacement, "CLASS %d", current_class_level);
+// bool verif_char(char entite[], int current_class_level, char code[], char check[])
+// {
+//     char emplacement[20];
+//     if (current_class_level == 0)
+//         strcpy(emplacement, "MAIN");
+//     else
+//         sprintf(emplacement, "CLASS %d", current_class_level);
 
-    int hash_idx = hash(entite);
-    ElementNode *current = table.tab[hash_idx];
+//     int hash_idx = hash(entite);
+//     ElementNode *current = table.tab[hash_idx];
 
-    while (current != NULL)
-    {
-        if (strcmp(current->name, entite) == 0 &&
-            strcmp(current->code, code) == 0 &&
-            strcmp(current->emplacement, emplacement) == 0)
-        {
+//     while (current != NULL)
+//     {
+//         if (strcmp(current->name, entite) == 0 &&
+//             strcmp(current->code, code) == 0 &&
+//             strcmp(current->emplacement, emplacement) == 0)
+//         {
 
-            return atof(current->taille) >= strlen(check) - 2;
-        }
-        current = current->next;
-    }
-    return false;
-}
+//             return atof(current->taille) >= strlen(check) - 2;
+//         }
+//         current = current->next;
+//     }
+//     return false;
+// }
 
 bool verif_param(char entite[], int nb_param)
 {
@@ -409,18 +393,18 @@ bool verif_param(char entite[], int nb_param)
 
 void afficher()
 {
-    printf("/*************************Table des symboles IDF et constantes*************************/\n");
-    printf("_______________________________________________________________________________________________________________________________________________________________________________________\n");
-    printf("\t|\t\t   Nom_Entite    \t\t| \tCode_Entite\t|\tType_Entite\t|  Val_Entite  |  Taille  |  Lignes  | Colonnes |  Emplacement |  Last update |\n");
-    printf("_______________________________________________________________________________________________________________________________________________________________________________________\n");
+    printf("/************************* Table des symboles (IDF et constantes) *************************/\n");
+    printf("___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________\n");
+    printf("\t|\t\t   Nom_Entite    \t\t| \tCode_Entite\t|\tType_Entite\t|  Val_Entite  |  Taille  |  Dimensions | Num_Params | \t\t\t\t Scope \t\t\t\t|   Last update   |\n");
+    printf("___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________\n");
 
     ElementNode *current = table.element_fifo_head;
     while (current != NULL)
     {
-        printf("\t| %45s |  %20s | %20s | %12s | %8s | %8s | %8s | %12s | %12s |\n",
+        printf("\t| %45s |  %20s | %20s | %12s | %10s | %10s | %10s | %56s | %15s |\n",
                current->name, current->code, current->type, current->val,
-               current->taille, current->ligne, current->colonne,
-               current->emplacement, current->update);
+               current->taille, current->dimensions, current->num_params,
+               current->scope, current->update);
         current = current->fifo_next;
     }
 
@@ -466,21 +450,23 @@ void diviserChaine(const char *chaine, char *partie1, char *partie2)
     }
 }
 
-char *stringify_emplacement(int current_class_level)
+char *getArrayDimension(char *str)
 {
-    char *class_emplacement = (char *)malloc(20 * sizeof(char));
-    if (current_class_level == 0)
+
+    static char result[20];
+    int count = 0;
+    const char *ptr = str;
+    while (*ptr)
     {
-        strcpy(class_emplacement, "MAIN");
+        if (*ptr == '[')
+            count++;
+        ptr++;
     }
-    else
-    {
-        sprintf(class_emplacement, "CLASS %d", current_class_level);
-    }
-    return class_emplacement;
+    sprintf(result, "%d", count);
+    return result;
 }
 
-char *parseArrayDimensions(char *str)
+char *getArraySize(char *str)
 {
     static char result[20];
 
@@ -522,7 +508,7 @@ char *parseArrayDimensions(char *str)
 
     if (dimCount == 0)
     {
-        strcpy(result, "/");
+        strcpy(result, "-");
         return result;
     }
 
@@ -552,6 +538,39 @@ char *parseArrayDimensions(char *str)
     }
 
     return result;
+}
+
+char current_scope[256] = "GLOBAL";
+
+void enter_scope(const char *name)
+{
+    if (strlen(current_scope) + strlen(name) + 1 >= 256)
+    {
+        fprintf(stderr, "Scope path too long!\n");
+        exit(1);
+    }
+
+    strcat(current_scope, ".");
+    strcat(current_scope, name);
+}
+
+void exit_scope()
+{
+    char *last_dot = strrchr(current_scope, '.');
+    if (last_dot != NULL)
+    {
+        *last_dot = '\0';
+    }
+    else
+    {
+        strcpy(current_scope, "GLOBAL");
+    }
+}
+
+void set_scope(const char *scope)
+{
+    strncpy(current_scope, scope, 255);
+    current_scope[255] = '\0';
 }
 
 void liberer_table()

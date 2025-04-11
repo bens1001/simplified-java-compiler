@@ -8,15 +8,18 @@
 int nb_line=1;
 int nb_character=0;
 char *file_name;
-char taille[20];
-char class_emplacement[20];
-int current_class_level=0;
+
 char typeIDF[20];
 char current_type[20];
+
 int parameter_counter=0;
 char parameters_value[20];
+char dimension_value[20];
+
 char string_size[20];
 char string_message[20];
+
+int for_scope_parser_counter=0;
 
 char i[20];
 int deb_else;
@@ -42,10 +45,10 @@ char tab[20];
     char* str;
 }
 
-%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE OPTIONAL_MULTIDIMENSION METHOD_SUFFIX ENTITY_ITEM_SUFFIX OBJECT_NAME OBJECT_ACCESS_METHOD OBJECT_ACCESS_SUFFIX OBJECT_ACCESS_SEQUENCE
+%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE OPTIONAL_MULTIDIMENSION METHOD_SUFFIX ENTITY_ITEM_SUFFIX OBJECT_NAME OBJECT_ACCESS_METHOD OBJECT_ACCESS_SUFFIX OBJECT_ACCESS_SEQUENCE IMPORT_PATH_SUFFIX
 ;
 
-%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwEXCEPTION kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
+%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE EXCEPTION kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
 ;
 
 %start JAVA
@@ -59,108 +62,148 @@ char tab[20];
 %left opNOT
 
 %%
-JAVA: IMPORT_LIST {current_class_level++;} CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
+JAVA: {set_scope("GLOBAL")} IMPORT_LIST  CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
 ;
 
 // ------------------------------- PACKAGE IMPORT BLOCK -------------------------------------------------------------------------
 
 IMPORT_LIST: IMPORT_LIST IMPORT_ITEM
-           |
+           | /* empty */
 ;
 
 IMPORT_ITEM: kwIMPORT IMPORT_PATH pvg
 ;
 
-IMPORT_PATH: IDF 
-              {
-                strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                miseajour($1,"Import Path","/", "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
-                $$ = strdup($1); 
+IMPORT_PATH: IDF IMPORT_PATH_SUFFIX
+            {
+              if (strlen($2) == 0) {
+                search($1, "Class", "-", "-", "-", "-", "-", current_scope, "SYNTAXIQUE",0);
+                $$ = strdup($1);
+              } else {
+                char buffer[256];
+                search($1, "Package", "-", "-", "-", "-", "-", current_scope, "SYNTAXIQUE",0);
+                sprintf(buffer, "%s%s", $1, $2);
+                $$ = strdup(buffer);
               }
-           | IMPORT_PATH pt IDF 
-               {
-                  strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                  miseajour($3,"Import Path","/", "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
-                  // char *tmp = malloc(strlen($1) + strlen($3) + 2);
-                  // sprintf(tmp, "%s.%s", $1, $3);
-                  // $$ = tmp;
-               }
+            }
 ;
+
+IMPORT_PATH_SUFFIX: pt IDF IMPORT_PATH_SUFFIX
+                      {
+                        char segment[256];
+                        
+                        if (strlen($3) == 0) {
+                          search($2, "Class", "-", "-", "-", "-", "-", current_scope, "SYNTAXIQUE",0);
+                        } else {
+                          search($2, "Package", "-", "-", "-", "-", "-", current_scope, "SYNTAXIQUE",0);
+                        }
+                        sprintf(segment, ".%s%s", $2, $3);
+                        $$ = strdup(segment);
+                      }
+                  |   /* empty */
+                      { 
+                        $$ = strdup(""); 
+                      }
+;
+
 
 // ------------------------------ MAIN CLASS BLOCK ---------------------------------------------------------------------------
 
-MAIN_CLASS: kwCLASS kwMAIN { current_class_level = 0; } acco MAIN_METHOD accf 
-          |
+MAIN_CLASS: kwCLASS kwMAIN acco MAIN_METHOD accf 
+          | /* empty */
 ;
 
-MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf 
+MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN po METHOD_PARAMETER_LIST pf 
+                    {  
+                      enter_scope("main");
+                    }
+             acco INSTRUCTION_LIST accf 
+                    {
+                      exit_scope();
+                    }
 ;
 
 // ------------------------------ CLASS BLOCK ----------------------------------------------------------------------------------
 
 CLASS_LIST: CLASS_LIST CLASS 
-          | 
+          | /* empty */
 ;
 
-CLASS: kwCLASS IDF acco ENTITY_LIST accf 
-            {
-                strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                miseajour($2, "Class Name","/", "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
-                current_class_level++;
-            }
+CLASS: kwCLASS IDF 
+              {     
+                search($2, "Class", "-", "-", "-", "-", "-", current_scope, "SYNTAXIQUE",0);
+                enter_scope($2);
+              }
+        acco ENTITY_LIST accf 
+              {
+                exit_scope();
+              }
 ;
 
 // ---------------------------- ENTITY BLOCK (ATTRIBUTES AND METHODS) ---------------------------------------------------------
 
 ENTITY_LIST: ENTITY_LIST_NONEMPTY
-           |
+           | /* empty */
 ;
 
 ENTITY_LIST_NONEMPTY: ENTITY_ITEM
                     | ENTITY_LIST_NONEMPTY ENTITY_ITEM
 ;
 
-ENTITY_ITEM: TYPE IDF ENTITY_ITEM_SUFFIX 
+ENTITY_ITEM: TYPE IDF {enter_scope($2);} ENTITY_ITEM_SUFFIX 
                 {
-                  strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                  if (strcmp($3,"Object Method")==0) sprintf(parameters_value,"%d",parameter_counter); 
-                  else strcpy(parameters_value,parseArrayDimensions($1));
-                  miseajour($2, $3, $1, "-1", parameters_value, "/", "/", class_emplacement, "SYNTAXIQUE");
+                  if (strcmp($4,"Method")==0) { 
+                    sprintf(parameters_value,"%d",parameter_counter); 
+                    strcpy(dimension_value,"-");
+                  }
+                  else {
+                    exit_scope();
+                    strcpy(parameters_value,"-");
+                    strcpy(dimension_value,getArrayDimension($1));
+                  }
+                  search($2, $4, $1, "-1", getArraySize($1), dimension_value,parameters_value ,current_scope, "SYNTAXIQUE",0); 
                 }
            | CONSTRUCTOR
 ;
 
-ENTITY_ITEM_SUFFIX: METHOD_SUFFIX {$$=strdup("Object Method");}
-                  | VARIABLE_SUFFIX pvg {$$ = strdup("Object Attribute");}
+ENTITY_ITEM_SUFFIX: METHOD_SUFFIX {$$=strdup("Method");}
+                  | VARIABLE_SUFFIX pvg {$$ = strdup("Attribute");}
 ;
 
 // -------------------------- CONSTRUCTOR BLOCK ---------------------------------------------------------------------------------
 
-CONSTRUCTOR: IDF CONSTRUCTOR_SUFFIX
+CONSTRUCTOR: IDF CONSTRUCTOR_SUFFIX 
+                {
+                  enter_scope($1);
+                  sprintf(parameters_value,"%d",parameter_counter); 
+                  search($1, "Constructor", "-", "-", "-", "-",parameters_value, current_scope, "SYNTAXIQUE",0);
+                }
 ;
 
-CONSTRUCTOR_SUFFIX: po CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
+CONSTRUCTOR_SUFFIX: po {parameter_counter = 0;}  CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf {exit_scope();} 
 ;
 
-CONSTRUCTOR_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
-                          |
-;
+CONSTRUCTOR_PARAMETER_LIST: TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
+                          | /* empty */
+
+CONSTRUCTOR_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
+                     | /* empty */
+;                        
+
 // -------------------------- METHOD BLOCK ---------------------------------------------------------------------------------
 
-METHOD_SUFFIX: po {parameter_counter = 0;} METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf
+METHOD_SUFFIX: po {parameter_counter = 0;} METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf {exit_scope();}
 ;
 
-METHOD_PARAMETER_LIST: TYPE IDF METHOD_PARAMETER_ITEM
+METHOD_PARAMETER_LIST: TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
                         {
-                            parameter_counter++;
-                            strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                            miseajour($2, "Parameter", $1, "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                            search($2, "Parameter", $1, "-1", getArraySize($1),getArrayDimension($1), "-1", current_scope, "SYNTAXIQUE",0);
                         }
-                     |
+                     | /* empty */
 ;
 
-METHOD_PARAMETER_ITEM: vg TYPE IDF METHOD_PARAMETER_ITEM
-                     |
+METHOD_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
+                     | /* empty */
 ;
 
 // ----------------------------- TYPE BLOCK -----------------------------------------------------------------------------------
@@ -187,8 +230,6 @@ NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(current_type,$1);}
 
 OBJECT_TYPE: IDF 
               {
-                strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                miseajour($1, "Object Type","/", "/", "/","/", "/", class_emplacement, "SYNTAXIQUE");
                 $$=strdup($1);
               }
 ;
@@ -237,7 +278,7 @@ OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                     //   YYABORT;
                     // }
                     // strcpy(typeIDF,getType($1,current_class_level,"Variable"));
-                    // if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"/")!=0) {
+                    // if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"-")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
@@ -248,29 +289,27 @@ OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                     //   YYABORT;
                     // }
                     // if (current_class_level==0)
-                    //     search($4,"Idf","/","/","/","/","/","GLOBAL",3);
+                    //     search($4,"Idf","-","-","-","-","-","GLOBAL",3);
                     //   else {
                     //     sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //     search($4,"Idf","/","/","/","/","/",class_emplacement,3);
+                    //     search($4,"Idf","-","-","-","-","-",class_emplacement,3);
                     // }
-                    strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                    miseajour($1, "Method Call", "-1", "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
                     $$=strdup($1);
                   }
 ;
 
 // ------------------------------ ARGUMENT BLOCK ------------------------------------------------------------------------------------
 
-ARGUMENT_LIST: ARGUMENTS 
+ARGUMENT_LIST: ARGUMENT_ITEM 
              | 
 ;
 
-ARGUMENTS:
+ARGUMENT_ITEM:
       EXPRESSION_ITEM
       { 
-        //  parameter_counter++;
+        // parameter_counter++;
       }
-    | ARGUMENTS vg EXPRESSION_ITEM
+    | ARGUMENT_ITEM vg EXPRESSION_ITEM
       { 
          // parameter_counter++
       }
@@ -349,10 +388,10 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
                 //   YYABORT;
                 // }
                 // if (current_class_level==0)
-                //   miseajour($2,"Variable",$1,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
+                //   search($2,"Variable",$1,"-1","-","-","-","GLOBAL","SYNTAXIQUE",0);
                 // else {
                 //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                //   miseajour($2,"Variable",$1,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
+                //   search($2,"Variable",$1,"-1","-","-","-",class_emplacement,"SYNTAXIQUE",0);
                 // }
 
                 // avec affectation
@@ -363,12 +402,12 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
                 //   YYABORT;
                 // }
                 // if (current_class_level==0)
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                //   miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                 // else {
                 //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                //   miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                 // }
-                // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                 //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                 //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                 //     YYABORT;
@@ -385,10 +424,10 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
               //   YYABORT;
               // }
               // if (current_class_level==0)
-              //   miseajour($2,"Vecteur",$1,"/",$4,$4,"/","GLOBAL","SYNTAXIQUE");
+              //   search($2,"Vecteur",$1,"-",$4,$4,"-","GLOBAL","SYNTAXIQUE",0);
               // else {
               //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-              //   miseajour($2,"Vecteur",$1,"/",$4,$4,"/",class_emplacement,"SYNTAXIQUE");
+              //   search($2,"Vecteur",$1,"-",$4,$4,"-",class_emplacement,"SYNTAXIQUE",0);
               // }
               // if(atof($5)<1){
               //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -405,12 +444,12 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
                 //   YYABORT;
                 // }
                 // if (current_class_level==0)
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                //   miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                 // else {
                 //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                //   miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                 // }
-                // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                 //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                 //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                 //     YYABORT;
@@ -428,10 +467,10 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
               //   YYABORT;
               // }
               // if (current_class_level==0)
-              //   miseajour($2,"Matrice",$1,"/",taille,$4,$6,"GLOBAL","SYNTAXIQUE");
+              //   search($2,"Matrice",$1,"-",taille,$4,$6,"GLOBAL","SYNTAXIQUE",0);
               // else {
               //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-              //   miseajour($2,"Matrice",$1,"/",taille,$4,$6,class_emplacement,"SYNTAXIQUE"); 
+              //   search($2,"Matrice",$1,"-",taille,$4,$6,class_emplacement,"SYNTAXIQUE",0); 
               // }
               // if(atof($4)<1 || atof($6)<1){
               //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -449,12 +488,12 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
                 //   YYABORT;
                 // }
                 // if (current_class_level==0)
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                //   miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                 // else {
                 //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                //   miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                 // }
-                // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                 //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                 //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                 //     YYABORT;
@@ -470,15 +509,15 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
 
                     // sans affectation 
 
-                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
+                    // if (idf_existe($2,current_class_level,"Variable")) {
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
                     //   YYABORT;
                     // }
                     // if (current_class_level==0)
-                    //   miseajour($2,"Variable",current_type,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
+                    //   search($2,"Variable",current_type,"-1","-","-","-","GLOBAL","SYNTAXIQUE",0);
                     // else {
                     //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   miseajour($2,"Variable",current_type,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
+                    //   search($2,"Variable",current_type,"-1","-","-","-",class_emplacement,"SYNTAXIQUE",0);
                     // }
 
                     // avec affectation
@@ -489,12 +528,12 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     //   YYABORT;
                     // }
                     // if (current_class_level==0)
-                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                    //   miseajour($2,"Variable",current_type,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                     // else {
                     //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                    //   miseajour($2,"Variable",current_type,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                     // }
-                    // if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                    // if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                     //   if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
@@ -517,10 +556,10 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     //   YYABORT;
                     // }
                     // if (current_class_level==0)
-                    //   miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1","GLOBAL","SYNTAXIQUE");
+                    //   search($2,"Vecteur",current_type,"-",$5,$5,"-1","GLOBAL","SYNTAXIQUE",0);
                     // else {
                     //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1",class_emplacement,"SYNTAXIQUE");
+                    //   search($2,"Vecteur",current_type,"-",$5,$5,"-1",class_emplacement,"SYNTAXIQUE",0);
                     // }
                     // if(atof($5)<1){
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -537,12 +576,12 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     //   YYABORT;
                     // }
                     // if (current_class_level==0)
-                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                    //   miseajour($2,"Variable",current_type,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                     // else {
                     //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   miseajour($2,"Variable",current_type,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                    //   miseajour($2,"Variable",current_type,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                     // }
-                    // if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                    // if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                     //   if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
@@ -567,10 +606,10 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     //   YYABORT;
                     // }
                     // if (current_class_level==0)
-                    //   miseajour($2,"Matrice",current_type,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
+                    //   search($2,"Matrice",current_type,"-",taille,$5,$7,"GLOBAL","SYNTAXIQUE",0);
                     // else {
                     //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   miseajour($2,"Matrice",current_type,"/",taille,$5,$7,class_emplacement,"SYNTAXIQUE");
+                    //   search($2,"Matrice",current_type,"-",taille,$5,$7,class_emplacement,"SYNTAXIQUE",0);
                     // } 
                     // if(atof($5)<1 || atof($7)<1){
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -587,12 +626,12 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                       //   YYABORT;
                       // }
                       // if (current_class_level==0)
-                      //   miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                      //   miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                       // else {
                       //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      //   miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                      //   miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                       // }
-                      // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                      // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                       //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                       //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                       //     YYABORT;
@@ -625,8 +664,7 @@ INSTRUCTION_ITEM: OUTPUT    pvg
 
 DECLARATION: TYPE IDF VARIABLE_SUFFIX 
                 {
-                  strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                  miseajour($2, "Variable", $1, "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                  search($2, "Variable", $1, "-1", getArraySize($1),getArrayDimension($1), "-", current_scope, "SYNTAXIQUE",0);
                 }
 ;
 
@@ -643,13 +681,13 @@ STRING_MESSAGE: STRING MESSAGE_CONCATENATION
                   {
                     sprintf(string_size,"%d",strlen($1)-2);
 	                  sprintf(string_message,"char[%d]",strlen($1)-2);
-                    search($1,"IDF",string_message,"/",string_size,"/","/","/",3);
+	                  search($1,"Output Message",string_message,"-",string_size,"1","-","-","SYNTAXIQUE",0);
                   }
               | STRING
                   {
                     sprintf(string_size,"%d",strlen($1)-2);
 	                  sprintf(string_message,"char[%d]",strlen($1)-2);
-                    search($1,"IDF",string_message,"/",string_size,"/","/","/",3);
+	                  search($1,"Output Message",string_message,"-",string_size,"1","-","-","SYNTAXIQUE",0);
                   }
               | VARIABLE_MESSAGE opADD STRING_MESSAGE
                   {}
@@ -696,7 +734,7 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
                     // }
                     // diviserChaine($3,partie1_1,partie1_2);
                     // strcpy(typeIDF,getType($1,current_class_level,"Variable"));
-                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
+                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //       printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
@@ -719,7 +757,7 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
                     //   YYABORT;
                     // }
                     // strcpy(typeIDF,getType($1,current_class_level,"Vecteur"));
-                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
+                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
@@ -744,7 +782,7 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
                     //   YYABORT;
                     // }
                     // strcpy(typeIDF,getType($1,current_class_level,"Matrice"));
-                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
+                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
                     //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //     YYABORT;
@@ -794,7 +832,7 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //   YYABORT;
                     // }
-                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0){
+                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
                     //   strcpy(cat,"REAL-");
                     //   strcat(cat,temp);
                     //   $$=strdup(cat);
@@ -816,7 +854,7 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //   YYABORT;
                     // }
-                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0){
+                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
                     //   strcpy(cat,"REAL-");
                     //   strcat(cat,temp);
                     //   $$=strdup(cat);
@@ -838,7 +876,7 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //   YYABORT;
                     // }
-                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0){
+                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
                     //   strcpy(cat,"REAL-");
                     //   strcat(cat,temp);
                     //   $$=strdup(cat);
@@ -860,7 +898,7 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                     //   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     //   YYABORT;
                     // }
-                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0){
+                    // if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
                     //   strcpy(cat,"REAL-");
                     //   strcat(cat,temp);
                     //   $$=strdup(cat);
@@ -889,7 +927,7 @@ EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
                     // strcpy(cat,"REAL-");
                     // strcat(cat,temp);
                     // $$=strdup(cat);
-                    // remplir_quad("/",partie1_2,partie2_2,temp);
+                    // remplir_quad("-",partie1_2,partie2_2,temp);
                     // tmp++;
                   } 
           | OBJECT_ACCESS  
@@ -1006,7 +1044,7 @@ CONDITION: po EXPRESSION_ITEM COMPARISON_OPERATOR EXPRESSION_ITEM pf
                 // diviserChaine($2,partie1_1,partie1_2);
                 // diviserChaine($6,partie2_1,partie2_2);
                 // sprintf(temp,"T%d",tmp);
-                // if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0) {
+                // if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0) {
                 //   if(!((strcmp(partie1_1,"REAL")==0 && strcmp(partie2_1,"INTEGER")==0) || (strcmp(partie2_1,"REAL")==0 && strcmp(partie1_1,"INTEGER")==0))){
                 //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                 //     YYABORT;
@@ -1070,7 +1108,7 @@ R1_2_CONTROLE: R2_1_CONTROLE acco INSTRUCTION_LIST accf
 R3_1_CONTROLE: kwIF EXPRESSION_ITEM 
               {
                 // diviserChaine($2,partie1_1,partie1_2);
-                // if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"/")!=0){
+                // if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"-")!=0){
                 //   printf("\nFile '%s', line %d, character %d: semantic error : Unexpected expression type.\n",file_name,nb_line,nb_character);
                 //   YYABORT;
                 // }
@@ -1121,26 +1159,33 @@ LOOP_BLOCK: FOR_LOOP
 
 // --------------------------------- FOR LOOP BLOCK -----------------------------------------------------------------------------------
 
-FOR_LOOP: kwFOR FOR_LOOP_SIGNATURE acco INSTRUCTION_LIST accf
-          {
-            // remplir_quad("BR"," ","<vide>","<vide>");
-            // sprintf(i,"%d",qc); 
-            // mise_jr_quad($2,2,i);
-          }
+FOR_LOOP: kwFOR 
+            {
+              char new_scope[256];
+              for_scope_parser_counter++;
+              sprintf(new_scope,"for_loop_%d",for_scope_parser_counter);
+              enter_scope(new_scope);
+            }
+          FOR_LOOP_SIGNATURE acco INSTRUCTION_LIST accf
+            {
+              // remplir_quad("BR"," ","<vide>","<vide>");
+              // sprintf(i,"%d",qc); 
+              // mise_jr_quad($2,2,i);
+              exit_scope();
+              for_scope_parser_counter=0;
+            }
 ;
 
 COUNTER_INIT: NUMERIC_TYPE IDF OPTIONAL_ASSIGN
                   {
-                      strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                      miseajour($2,"Loop Counter",$1, "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
+                      search($2,"Variable",$1, "-1", "-", "0", "-",current_scope, "SYNTAXIQUE",0);
                   }
             | OBJECT_ACCESS OPTIONAL_ASSIGN
             |
 
 FOR_LOOP_SIGNATURE: po NUMERIC_TYPE IDF dp OBJECT_ACCESS pf 
                         {
-                          strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                          miseajour($3,"Loop Parser",$2, "/", "/", "/", "/",class_emplacement, "SYNTAXIQUE");
+                          search($3,"Variable",$2, "-1", "-", "0", "-",current_scope, "SYNTAXIQUE",0);
                         }
                   | po OBJECT_ACCESS dp OBJECT_ACCESS pf
                   | po COUNTER_INIT pvg CONDITION pvg INCREMENT pf
@@ -1208,13 +1253,11 @@ CATCH_LIST: kwCATCH po CATCH_PARAMETER pf acco INSTRUCTION_LIST accf CATCH_LIST
 
 CATCH_PARAMETER: IDF 
                   {
-                    strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                    miseajour($1, "Catch Parameter", "-1", "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+                    search($1, "Catch Parameter", "-", "-", "-","-", "-", current_scope, "SYNTAXIQUE",0);
                   }
-               | kwEXCEPTION IDF
-                  {
-                    strcpy(class_emplacement,stringify_emplacement(current_class_level)); 
-                    miseajour($2, "Catch Parameter", $1, "-1", "-1","-1", "-1", class_emplacement, "SYNTAXIQUE");
+               | EXCEPTION IDF
+                  { 
+                    search($2, "Catch Parameter", $1, "-", "-","-", "-", current_scope, "SYNTAXIQUE",0);
                   }
                |
 ;
@@ -1242,7 +1285,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
               YYABORT;
             }
             sprintf(parameters_value,"%d",parameter_counter); 
-            miseajour($3,"Fonction",$1,"-1",parameters_value,"/","/","-1","SYNTAXIQUE");
+            miseajour($3,"Fonction",$1,"-1",parameters_value,"-","-","-1","SYNTAXIQUE");
             parameter_counter=0;
           }
 ; */
@@ -1256,7 +1299,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
 /* PARAM: idf PARA
           { 
             sprintf(class_emplacement,"LOCAL %d",current_class_level);
-            miseajour($1,"Parametre","/","/","/","/","/",class_emplacement,"SYNTAXIQUE");
+            miseajour($1,"Parametre","-","-","-","-","-",class_emplacement,"SYNTAXIQUE");
             parameter_counter++;
           }
      | 
@@ -1265,7 +1308,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
 /* PARA: vg idf PARA
           { 
             sprintf(class_emplacement,"LOCAL %d",current_class_level);
-            miseajour($2,"Parametre","/","/","/","/","/",class_emplacement,"SYNTAXIQUE");
+            miseajour($2,"Parametre","-","-","-","-","-",class_emplacement,"SYNTAXIQUE");
             parameter_counter++;
           }
     |
@@ -1312,7 +1355,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                 YYABORT;
               }
               strcpy(typeIDF,getType($1,current_class_level,"Fonction"));
-              if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
+              if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
                 if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                   YYABORT;
@@ -1323,7 +1366,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
             }
 ; */
 
-/* MAIN: kwPROGRAM idf DEC INSTRUCTION_LIST kwEND pt { miseajour($2,"Programme Principal","/","/","/","/","/","GLOBAL","SYNTAXIQUE");}
+/* MAIN: kwPROGRAM idf DEC INSTRUCTION_LIST kwEND pt { miseajour($2,"Programme Principal","-","-","-","-","-","GLOBAL","SYNTAXIQUE");}
 ; */
 
 /* DEC: DECSOLO DEC 
@@ -1344,10 +1387,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                   YYABORT;
                 }
                 if (current_class_level==0)
-                  miseajour($2,"Variable",$1,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
+                  miseajour($2,"Variable",$1,"-1","-","-","-","GLOBAL","SYNTAXIQUE");
                 else {
                   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                  miseajour($2,"Variable",$1,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
+                  miseajour($2,"Variable",$1,"-1","-","-","-",class_emplacement,"SYNTAXIQUE");
                 }
               }
        | TYPE idf aff EXPRESSION_ITEM LISTVAR pvg 
@@ -1358,12 +1401,12 @@ RETURN: kwRETURN EXPRESSION_ITEM
                   YYABORT;
                 }
                 if (current_class_level==0)
-                  miseajour($2,"Variable",$1,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                  miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                 else {
                   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                  miseajour($2,"Variable",$1,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                  miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                 }
-                if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     YYABORT;
@@ -1378,10 +1421,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                   YYABORT;
                 }
                 if (current_class_level==0)
-                  miseajour($2,"Variable",$1,"-1",$3,"/","/","GLOBAL","SYNTAXIQUE");
+                  miseajour($2,"Variable",$1,"-1",$3,"-","-","GLOBAL","SYNTAXIQUE");
                 else {
                   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                  miseajour($2,"Variable",$1,"-1",$3,"/","/",class_emplacement,"SYNTAXIQUE");
+                  miseajour($2,"Variable",$1,"-1",$3,"-","-",class_emplacement,"SYNTAXIQUE");
                 }
               } 
        | kwCHARACTER idf MULCHAR aff EXPRESSION_ITEM LISTVARSOLOCHAR pvg 
@@ -1392,12 +1435,12 @@ RETURN: kwRETURN EXPRESSION_ITEM
                   YYABORT;
                 }
                 if (current_class_level==0)
-                  miseajour($2,"Variable",$1,partie1_2,$3,"/","/","GLOBAL","SEMANTIQUE");
+                  miseajour($2,"Variable",$1,partie1_2,$3,"-","-","GLOBAL","SEMANTIQUE");
                 else {
                   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                  miseajour($2,"Variable",$1,partie1_2,$3,"/","/",class_emplacement,"SEMANTIQUE");
+                  miseajour($2,"Variable",$1,partie1_2,$3,"-","-",class_emplacement,"SEMANTIQUE");
                 }
-                if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                   YYABORT;
                 }
@@ -1416,10 +1459,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                 YYABORT;
               }
               if (current_class_level==0)
-                miseajour($2,"Vecteur",$1,"/",$5,$5,"/","GLOBAL","SYNTAXIQUE");
+                miseajour($2,"Vecteur",$1,"-",$5,$5,"-","GLOBAL","SYNTAXIQUE");
               else {
                 sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                miseajour($2,"Vecteur",$1,"/",$5,$5,"/",class_emplacement,"SYNTAXIQUE");
+                miseajour($2,"Vecteur",$1,"-",$5,$5,"-",class_emplacement,"SYNTAXIQUE");
               }
               if(atof($5)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1436,10 +1479,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                 YYABORT;
               }
               if (current_class_level==0)
-                miseajour($2,"Vecteur",$1,"/",taille,$6,"/","GLOBAL","SYNTAXIQUE");  
+                miseajour($2,"Vecteur",$1,"-",taille,$6,"-","GLOBAL","SYNTAXIQUE");  
               else {
                 sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                miseajour($2,"Vecteur",$1,"/",taille,$6,"/",class_emplacement,"SYNTAXIQUE");  
+                miseajour($2,"Vecteur",$1,"-",taille,$6,"-",class_emplacement,"SYNTAXIQUE");  
               }
               if(atof($6)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1458,10 +1501,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                 YYABORT;
               }
               if (current_class_level==0)
-                miseajour($2,"Matrice",$1,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
+                miseajour($2,"Matrice",$1,"-",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
               else {
                 sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                miseajour($2,"Matrice",$1,"/",taille,$5,$7,class_emplacement,"SYNTAXIQUE"); 
+                miseajour($2,"Matrice",$1,"-",taille,$5,$7,class_emplacement,"SYNTAXIQUE"); 
               }
               if(atof($5)<1 || atof($7)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1479,10 +1522,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                 YYABORT;
               }
               if (current_class_level==0)
-                miseajour($2,"Matrice",$1,"/",taille,$6,$8,"GLOBAL","SYNTAXIQUE");
+                miseajour($2,"Matrice",$1,"-",taille,$6,$8,"GLOBAL","SYNTAXIQUE");
               else {
                 sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                miseajour($2,"Matrice",$1,"/",taille,$6,$8,class_emplacement,"SYNTAXIQUE"); 
+                miseajour($2,"Matrice",$1,"-",taille,$6,$8,class_emplacement,"SYNTAXIQUE"); 
               }
               if(atof($6)<1 || atof($8)<1){
                 printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1517,10 +1560,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     if (current_class_level==0)
-                      miseajour($2,"Variable",current_type,"-1","/","/","/","GLOBAL","SYNTAXIQUE");
+                      miseajour($2,"Variable",current_type,"-1","-","-","-","GLOBAL","SYNTAXIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Variable",current_type,"-1","/","/","/",class_emplacement,"SYNTAXIQUE");
+                      miseajour($2,"Variable",current_type,"-1","-","-","-",class_emplacement,"SYNTAXIQUE");
                     }
                   }
            | vg idf aff EXPRESSION_ITEM LISTVAR 
@@ -1531,12 +1574,12 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     if (current_class_level==0)
-                      miseajour($2,"Variable",current_type,partie1_2,"/","/","/","GLOBAL","SEMANTIQUE");
+                      miseajour($2,"Variable",current_type,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Variable",current_type,partie1_2,"/","/","/",class_emplacement,"SEMANTIQUE");
+                      miseajour($2,"Variable",current_type,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
                     }
-                    if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                    if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                       if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                         YYABORT;
@@ -1559,22 +1602,22 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     if (current_class_level==0)
-                      miseajour($2,"Variable","CHARACTER","-1",$3,"/","/","GLOBAL","SYNTAXIQUE");
+                      miseajour($2,"Variable","CHARACTER","-1",$3,"-","-","GLOBAL","SYNTAXIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Variable","CHARACTER","-1",$3,"/","/",class_emplacement,"SYNTAXIQUE");
+                      miseajour($2,"Variable","CHARACTER","-1",$3,"-","-",class_emplacement,"SYNTAXIQUE");
                     }
                   } 
                | vg idf MULCHAR aff EXPRESSION_ITEM LISTVARSOLOCHAR 
                   { 
                     diviserChaine($5,partie1_1,partie1_2);
                     if (current_class_level==0)
-                      miseajour($2,"Variable","CHARACTER",partie1_2,$3,"/","/","GLOBAL","SEMANTIQUE");
+                      miseajour($2,"Variable","CHARACTER",partie1_2,$3,"-","-","GLOBAL","SEMANTIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Variable","CHARACTER",partie1_2,$3,"/","/",class_emplacement,"SEMANTIQUE");
+                      miseajour($2,"Variable","CHARACTER",partie1_2,$3,"-","-",class_emplacement,"SEMANTIQUE");
                     }
-                    if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"/")!=0) {
+                    if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                       if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                         YYABORT;
@@ -1598,10 +1641,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     if (current_class_level==0)
-                      miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1","GLOBAL","SYNTAXIQUE");
+                      miseajour($2,"Vecteur",current_type,"-",$5,$5,"-1","GLOBAL","SYNTAXIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Vecteur",current_type,"/",$5,$5,"-1",class_emplacement,"SYNTAXIQUE");
+                      miseajour($2,"Vecteur",current_type,"-",$5,$5,"-1",class_emplacement,"SYNTAXIQUE");
                     }
                     if(atof($5)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1620,10 +1663,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     if (current_class_level==0)
-                      miseajour($2,"Vecteur","CHARACTER","/",taille,$6,"-1","GLOBAL","SYNTAXIQUE");
+                      miseajour($2,"Vecteur","CHARACTER","-",taille,$6,"-1","GLOBAL","SYNTAXIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Vecteur","CHARACTER","/",taille,$6,"-1",class_emplacement,"SYNTAXIQUE");
+                      miseajour($2,"Vecteur","CHARACTER","-",taille,$6,"-1",class_emplacement,"SYNTAXIQUE");
                     } 
                     if(atof($6)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of vector.\n",file_name,nb_line,nb_character);
@@ -1643,10 +1686,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     if (current_class_level==0)
-                      miseajour($2,"Matrice",current_type,"/",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
+                      miseajour($2,"Matrice",current_type,"-",taille,$5,$7,"GLOBAL","SYNTAXIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Matrice",current_type,"/",taille,$5,$7,class_emplacement,"SYNTAXIQUE");
+                      miseajour($2,"Matrice",current_type,"-",taille,$5,$7,class_emplacement,"SYNTAXIQUE");
                     } 
                     if(atof($5)<1 || atof($7)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1666,10 +1709,10 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     if (current_class_level==0)
-                      miseajour($2,"Matrice","CHARACTER","/",taille,$6,$8,"GLOBAL","SYNTAXIQUE");
+                      miseajour($2,"Matrice","CHARACTER","-",taille,$6,$8,"GLOBAL","SYNTAXIQUE");
                     else {
                       sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      miseajour($2,"Matrice","CHARACTER","/",taille,$6,$8,class_emplacement,"SYNTAXIQUE");
+                      miseajour($2,"Matrice","CHARACTER","-",taille,$6,$8,class_emplacement,"SYNTAXIQUE");
                     } 
                     if(atof($6)<1 || atof($8)<1){
                       printf("\nFile '%s', line %d, character %d: semantic error : Negative dimension of matrix.\n",file_name,nb_line,nb_character);
@@ -1703,7 +1746,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                     }
                     diviserChaine($3,partie1_1,partie1_2);
                     strcpy(typeIDF,getType($1,current_class_level,"Variable"));
-                    if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
+                    if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
                       if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                           printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                         YYABORT;
@@ -1726,7 +1769,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     strcpy(typeIDF,getType($1,current_class_level,"Vecteur"));
-                    if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
+                    if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
                       if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                         YYABORT;
@@ -1751,7 +1794,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       YYABORT;
                     }
                     strcpy(typeIDF,getType($1,current_class_level,"Matrice"));
-                    if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"/")!=0 && strcmp(partie1_1,"/")!=0) {
+                    if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
                       if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                         printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                         YYABORT;
@@ -1779,7 +1822,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                       YYABORT;
                     }
-                    if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0){
+                    if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
                       strcpy(cat,"REAL-");
                       strcat(cat,temp);
                       $$=strdup(cat);
@@ -1801,7 +1844,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                       YYABORT;
                     }
-                    if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0){
+                    if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
                       strcpy(cat,"REAL-");
                       strcat(cat,temp);
                       $$=strdup(cat);
@@ -1823,7 +1866,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                       printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                       YYABORT;
                     }
-                    if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0){
+                    if (strcmp(partie1_1,"REAL") == 0 || strcmp(partie2_1,"REAL") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
                       strcpy(cat,"REAL-");
                       strcat(cat,temp);
                       $$=strdup(cat);
@@ -1852,7 +1895,7 @@ RETURN: kwRETURN EXPRESSION_ITEM
                     strcpy(cat,"REAL-");
                     strcat(cat,temp);
                     $$=strdup(cat);
-                    remplir_quad("/",partie1_2,partie2_2,temp);
+                    remplir_quad("-",partie1_2,partie2_2,temp);
                     tmp++;
                   } 
           | idf  
@@ -1984,7 +2027,7 @@ R1_2_CONTROLE: R2_1_CONTROLE kwTHEN INSTRUCTION_LIST
 R3_1_CONTROLE: kwIF EXPRESSION_ITEM 
               {
                 diviserChaine($2,partie1_1,partie1_2);
-                if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"/")!=0){
+                if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"-")!=0){
                   printf("\nFile '%s', line %d, character %d: semantic error : Unexpected expression type.\n",file_name,nb_line,nb_character);
                   YYABORT;
                 }
@@ -2031,7 +2074,7 @@ IF_ELSE_BLOCK: R1_2_CONTROLE kwELSE INSTRUCTION_LIST kwENDIF
                 diviserChaine($2,partie1_1,partie1_2);
                 diviserChaine($6,partie2_1,partie2_2);
                 sprintf(temp,"T%d",tmp);
-                if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"/")!=0 && strcmp(partie2_1,"/")!=0) {
+                if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0) {
                   if(!((strcmp(partie1_1,"REAL")==0 && strcmp(partie2_1,"INTEGER")==0) || (strcmp(partie2_1,"REAL")==0 && strcmp(partie1_1,"INTEGER")==0))){
                     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                     YYABORT;
@@ -2126,11 +2169,11 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
 
 /* SORTIE: kwWRITE po STRING_MESSAGE pf 
           {
-            search($3,"Idf","CHARACTER","/","-1","/","/","/",3);
+            search($3,"Idf","CHARACTER","-","-1","-","-","-",3);
           }
       | kwWRITE po MEMBREIDF pf  
           {
-            search($3,"Idf","CHARACTER","/","-1","/","/","/",3);
+            search($3,"Idf","CHARACTER","-","-1","-","-","-",3);
           }
 ;  */
 
@@ -2177,7 +2220,7 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                 YYABORT;
               }
               strcpy(typeIDF,getType($1,current_class_level,"Variable"));
-              if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"/")!=0) {
+              if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"-")!=0) {
                 if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
                   printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
                   YYABORT;
@@ -2188,10 +2231,10 @@ BOUCLE: R1_1_BOUCLE INSTRUCTION_LIST kwENDDO
                 YYABORT;
               }
               if (current_class_level==0)
-                  search($4,"Idf","/","/","/","/","/","GLOBAL",3);
+                  search($4,"Idf","-","-","-","-","-","GLOBAL",3);
                 else {
                   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                  search($4,"Idf","/","/","/","/","/",class_emplacement,3);
+                  search($4,"Idf","-","-","-","-","-",class_emplacement,3);
               }
             }
 ; */
