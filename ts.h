@@ -272,25 +272,49 @@ void miseajour(char entite[], char code[], char type[], char val[], char taille[
     }
 }
 
-bool idf_existe(char entite[], int current_class_level, char code[])
+bool check_idf_recursive_scope(const char *name, const char *scope, const char *category)
 {
-    char scope[256];
-    if (current_class_level == 0)
-        strcpy(scope, "MAIN");
-    else
-        sprintf(scope, "CLASS %d", current_class_level);
+    char current_scope_copy[256];
+    strcpy(current_scope_copy, scope);
 
-    int hash_idx = hash(entite);
+    while (1)
+    {
+        // Recherche dans la portée actuelle ou parente
+        int hash_idx = hash(name);
+        ElementNode *current = table.tab[hash_idx];
+        while (current)
+        {
+            if (strcmp(current->name, name) == 0 &&
+                strcmp(current->code, category) == 0 &&
+                strcmp(current->scope, current_scope_copy) == 0)
+            {
+                return true;
+            }
+            current = current->next;
+        }
+
+        // Passer à la portée parente
+        char *last_dot = strrchr(current_scope_copy, '.');
+        if (!last_dot)
+            break;
+        *last_dot = '\0';
+    }
+    return false;
+}
+
+bool idf_exists_same_scope(const char *name, const char *scope, const char *category)
+{
+    int hash_idx = hash(name);
     ElementNode *current = table.tab[hash_idx];
 
-    while (current != NULL)
+    while (current)
     {
-        bool name_match = (strcmp(current->name, entite) == 0);
-        bool code_match = (strcmp(current->code, code) == 0);
-        bool scope_match = (current_class_level == -1) || (strcmp(current->scope, scope) == 0);
-
-        if (name_match && code_match && scope_match)
+        if (strcmp(current->name, name) == 0 &&
+            strcmp(current->scope, scope) == 0 && // Même portée
+            strcmp(current->code, category) == 0)
+        {
             return true;
+        }
         current = current->next;
     }
     return false;

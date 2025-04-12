@@ -131,6 +131,10 @@ CLASS_LIST: CLASS_LIST CLASS
 
 CLASS: kwCLASS IDF 
               {     
+                if (idf_exists_same_scope($2, current_scope, "Class")) {
+                  printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                  YYABORT;
+                }
                 search($2, "Class", "-", "-", "-", "-", "-", current_scope, "SYNTAXIQUE",0);
                 enter_scope($2);
               }
@@ -161,7 +165,11 @@ ENTITY_ITEM: TYPE IDF {enter_scope($2);} ENTITY_ITEM_SUFFIX
                     strcpy(parameters_value,"-");
                     strcpy(dimension_value,getArrayDimension($1));
                   }
-                  search($2, $4, $1, "-1", getArraySize($1), dimension_value,parameters_value ,current_scope, "SYNTAXIQUE",0); 
+                  if (idf_exists_same_scope($2, current_scope, $4)) {
+                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                      YYABORT;
+                  }
+                  search($2, $4, $1, "-1", getArraySize($1), dimension_value,parameters_value ,current_scope, "SYNTAXIQUE",0);
                 }
            | CONSTRUCTOR
 ;
@@ -184,9 +192,23 @@ CONSTRUCTOR_SUFFIX: po {parameter_counter = 0;}  CONSTRUCTOR_PARAMETER_LIST pf a
 ;
 
 CONSTRUCTOR_PARAMETER_LIST: TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
+                                {
+                                    if (idf_exists_same_scope($2, current_scope, "Parameter")) {
+                                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                                      YYABORT;
+                                    }
+                                    search($2, "Parameter", $1, "-1", getArraySize($1),getArrayDimension($1), "-1", current_scope, "SYNTAXIQUE",0);
+                                }
                           | /* empty */
 
 CONSTRUCTOR_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
+                                {
+                                    if (idf_exists_same_scope($3, current_scope, "Parameter")) {
+                                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$3);
+                                      YYABORT;
+                                    }
+                                    search($3, "Parameter", $2, "-1", getArraySize($2),getArrayDimension($2), "-1", current_scope, "SYNTAXIQUE",0);
+                                }
                      | /* empty */
 ;                        
 
@@ -197,12 +219,23 @@ METHOD_SUFFIX: po {parameter_counter = 0;} METHOD_PARAMETER_LIST pf acco INSTRUC
 
 METHOD_PARAMETER_LIST: TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
                         {
+                            if (idf_exists_same_scope($2, current_scope, "Parameter")) {
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                              YYABORT;
+                            }
                             search($2, "Parameter", $1, "-1", getArraySize($1),getArrayDimension($1), "-1", current_scope, "SYNTAXIQUE",0);
                         }
                      | /* empty */
 ;
 
 METHOD_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
+                        {
+                            if (idf_exists_same_scope($3, current_scope, "Parameter")) {
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$3);
+                              YYABORT;
+                            }
+                            search($3, "Parameter", $2, "-1", getArraySize($2),getArrayDimension($2), "-1", current_scope, "SYNTAXIQUE",0);
+                        }
                      | /* empty */
 ;
 
@@ -230,7 +263,7 @@ NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(current_type,$1);}
 
 OBJECT_TYPE: IDF 
               {
-                $$=strdup($1);
+                $$=strdup($1);strcpy(current_type,$1);
               }
 ;
 
@@ -646,10 +679,15 @@ INSTRUCTION_ITEM: OUTPUT    pvg
 
 // ------------------------------ DECLARATION BLOCK -------------------------------------------------------------------------------
 
-DECLARATION: TYPE IDF VARIABLE_SUFFIX 
-                {
-                  search($2, "Variable", $1, "-1", getArraySize($1),getArrayDimension($1), "-", current_scope, "SYNTAXIQUE",0);
-                }
+DECLARATION: TYPE IDF 
+                  {
+                    if (idf_exists_same_scope($2, current_scope, "Variable")) {
+                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                      YYABORT;
+                    }
+                    search($2, "Variable", $1, "-1", getArraySize($1),getArrayDimension($1), "-", current_scope, "SYNTAXIQUE",0);
+                  }
+              VARIABLE_SUFFIX 
 ;
 
 // ------------------------------ PRINT BLOCK -------------------------------------------------------------------------------------
