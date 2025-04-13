@@ -70,6 +70,8 @@ typedef struct SymbolTables
 SymbolTables table;
 extern char save[20];
 
+char current_scope[256] = "GLOBAL";
+
 // Initialize symbol table arrays and FIFO pointers
 void initialisation()
 {
@@ -272,6 +274,23 @@ void miseajour(char entite[], char code[], char type[], char val[], char taille[
     }
 }
 
+char *getType(char entite[], const char *scope, char code[])
+{
+    int hash_idx = hash(entite);
+    ElementNode *current = table.tab[hash_idx];
+    while (current != NULL)
+    {
+        if (strcmp(current->name, entite) == 0 &&
+            strcmp(current->code, code) == 0 &&
+            (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0))
+        {
+            return current->type;
+        }
+        current = current->next;
+    }
+    return "NULL";
+}
+
 bool check_idf_recursive_scope(const char *name, const char *scope, const char *category)
 {
     char current_scope_copy[256];
@@ -320,28 +339,20 @@ bool idf_exists_same_scope(const char *name, const char *scope, const char *cate
     return false;
 }
 
-char *getType(char entite[], int current_class_level, char code[])
+bool isConstructorValid(const char *constructorName, const char *current_scope)
 {
-    char scope[256];
-    if (current_class_level == 0)
-        strcpy(scope, "MAIN");
-    else
-        sprintf(scope, "CLASS %d", current_class_level);
-
-    int hash_idx = hash(entite);
-    ElementNode *current = table.tab[hash_idx];
-
-    while (current != NULL)
+    char *dotPos = strchr(current_scope, '.');
+    if (dotPos == NULL)
     {
-        bool name_match = (strcmp(current->name, entite) == 0);
-        bool code_match = (strcmp(current->code, code) == 0);
-        bool scope_match = (current_class_level == -1) || (strcmp(current->scope, scope) == 0);
-
-        if (name_match && code_match && scope_match)
-            return current->type;
-        current = current->next;
+        return false;
     }
-    return "NULL";
+
+    const char *className = dotPos + 1;
+    if (strcmp(constructorName, className) != 0)
+    {
+        return false;
+    }
+    return true;
 }
 
 // bool verif_index(char entite[], int current_class_level, char code[], char index[], char check[])
@@ -563,8 +574,6 @@ char *getArraySize(char *str)
 
     return result;
 }
-
-char current_scope[256] = "GLOBAL";
 
 void enter_scope(const char *name)
 {

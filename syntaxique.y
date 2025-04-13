@@ -43,9 +43,18 @@ char tab[20];
 
 %union {
     char* str;
+    int integer;
+    float flt;
+    double dbl;
+    struct {
+        char* name;
+        char* type;
+        char* size;
+        char* dimension;
+    } entity;
 }
 
-%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE OPTIONAL_MULTIDIMENSION METHOD_SUFFIX ENTITY_ITEM_SUFFIX OBJECT_NAME OBJECT_ACCESS_METHOD OBJECT_ACCESS_SUFFIX OBJECT_ACCESS_SEQUENCE IMPORT_PATH_SUFFIX
+%type <str>BASE_TYPE EXPRESSION_ITEM STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE OPTIONAL_MULTIDIMENSION METHOD_SUFFIX ENTITY_ITEM_SUFFIX OBJECT_NAME OBJECT_ACCESS_METHOD OBJECT_ACCESS_SUFFIX OBJECT_ACCESS_SEQUENCE IMPORT_PATH_SUFFIX OPTIONAL_ASSIGN EXPRESSION
 ;
 
 %token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE EXCEPTION kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE BOOL FLOAT DOUBLE INTEGER STRING IDF opGE opGT opEQ opLE opLT opNE opOR opAND opNOT opADD opMINUS opMUL opDIV opMOD opASSIGN pvg po pf acco accf dimo dimf pt vg dp
@@ -182,31 +191,26 @@ ENTITY_ITEM_SUFFIX: METHOD_SUFFIX {$$=strdup("Method");}
 
 CONSTRUCTOR: IDF CONSTRUCTOR_SUFFIX 
                 {
-                  enter_scope($1);
+                  if(!isConstructorValid($1,current_scope)) {
+                    printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Unvalid constructor.\n",file_name,nb_line,nb_character,$1);
+                    YYABORT;
+                  }
                   sprintf(parameters_value,"%d",parameter_counter); 
                   search($1, "Constructor", "-", "-", "-", "-",parameters_value, current_scope, "SYNTAXIQUE",0);
                 }
 ;
 
-CONSTRUCTOR_SUFFIX: po {parameter_counter = 0;}  CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf {exit_scope();} 
+CONSTRUCTOR_SUFFIX: po {parameter_counter = 0;}  CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf  
 ;
 
 CONSTRUCTOR_PARAMETER_LIST: TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
                                 {
-                                    if (idf_exists_same_scope($2, current_scope, "Parameter")) {
-                                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
-                                      YYABORT;
-                                    }
                                     search($2, "Parameter", $1, "-1", getArraySize($1),getArrayDimension($1), "-1", current_scope, "SYNTAXIQUE",0);
                                 }
                           | /* empty */
 
 CONSTRUCTOR_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
                                 {
-                                    if (idf_exists_same_scope($3, current_scope, "Parameter")) {
-                                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$3);
-                                      YYABORT;
-                                    }
                                     search($3, "Parameter", $2, "-1", getArraySize($2),getArrayDimension($2), "-1", current_scope, "SYNTAXIQUE",0);
                                 }
                      | /* empty */
@@ -219,10 +223,6 @@ METHOD_SUFFIX: po {parameter_counter = 0;} METHOD_PARAMETER_LIST pf acco INSTRUC
 
 METHOD_PARAMETER_LIST: TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
                         {
-                            if (idf_exists_same_scope($2, current_scope, "Parameter")) {
-                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
-                              YYABORT;
-                            }
                             search($2, "Parameter", $1, "-1", getArraySize($1),getArrayDimension($1), "-1", current_scope, "SYNTAXIQUE",0);
                         }
                      | /* empty */
@@ -230,10 +230,6 @@ METHOD_PARAMETER_LIST: TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
 
 METHOD_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
                         {
-                            if (idf_exists_same_scope($3, current_scope, "Parameter")) {
-                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$3);
-                              YYABORT;
-                            }
                             search($3, "Parameter", $2, "-1", getArraySize($2),getArrayDimension($2), "-1", current_scope, "SYNTAXIQUE",0);
                         }
                      | /* empty */
@@ -263,13 +259,24 @@ NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(current_type,$1);}
 
 OBJECT_TYPE: IDF 
               {
-                $$=strdup($1);strcpy(current_type,$1);
+                if (!idf_exists_same_scope($1, "GLOBAL", "Class")) {
+                  printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Undeclared Type.\n",file_name,nb_line,nb_character,$1);
+                  YYABORT;
+                }
+                $$=strdup($1);
+                strcpy(current_type,$1);
               }
 ;
 
 // ------------------------------ OBJECT BLOCK --------------------------------------------------------------------------------------
 
 OBJECT_CREATION: kwNEW IDF po ARGUMENT_LIST pf
+                    {
+                      if(!idf_exists_same_scope($2, "GLOBAL", "Class")) {
+                        printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Undeclared constructor.\n",file_name,nb_line,nb_character,$2);
+                        YYABORT;
+                      }
+                    }
 ;
 
 OBJECT_ACCESS: OBJECT_ACCESS_SEQUENCE 
@@ -327,7 +334,7 @@ OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
                     //     sprintf(class_emplacement,"LOCAL %d",current_class_level); 
                     //     search($4,"Idf","-","-","-","-","-",class_emplacement,3);
                     // }
-                    $$=strdup($1);
+                    $$ = strdup($1);
                   }
 ;
 
@@ -379,7 +386,13 @@ OPTIONAL_MULTIDIMENSION: dimo INDEX dimf OPTIONAL_MULTIDIMENSION
 ;
 
 OPTIONAL_ASSIGN: opASSIGN EXPRESSION
-               | 
+                    {
+                      $$=strdup($2);
+                    }
+               | /* empty */
+                    {
+                      $$=strdup("");
+                    }
 ;
 
 INDEX: EXPRESSION_ITEM 
@@ -530,20 +543,13 @@ VARIABLE_SUFFIX: OPTIONAL_ASSIGN VARIABLE_LIST
 
 VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST 
                   {  
-                    // solo
+                    if (idf_exists_same_scope($2, current_scope, "Attribute")) {
+                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                      YYABORT;
+                    }
+                    strcpy(dimension_value,getArrayDimension($1));
+                    search($2, "Attribute", current_type, "-1", getArraySize(current_type), dimension_value,"-" ,current_scope, "SYNTAXIQUE",0);
 
-                    // sans affectation 
-
-                    // if (idf_existe($2,current_class_level,"Variable")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                    //   YYABORT;
-                    // }
-                    // if (current_class_level==0)
-                    //   search($2,"Variable",current_type,"-1","-","-","-","GLOBAL","SYNTAXIQUE",0);
-                    // else {
-                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   search($2,"Variable",current_type,"-1","-","-","-",class_emplacement,"SYNTAXIQUE",0);
-                    // }
 
                     // avec affectation
 
@@ -573,35 +579,11 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     // remplir_quad("=",partie1_2,"<vide>",$2);
 
                     // array
-
-                    // sans affectation
-
-                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                    //   YYABORT;
-                    // }
-                    // if (current_class_level==0)
-                    //   search($2,"Vecteur",current_type,"-",$5,$5,"-1","GLOBAL","SYNTAXIQUE",0);
-                    // else {
-                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   search($2,"Vecteur",current_type,"-",$5,$5,"-1",class_emplacement,"SYNTAXIQUE",0);
-                    // }
                     // remplir_quad("BOUNDS","1",$5,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
 
                     //avec affectation
 
-                     // diviserChaine($4,partie1_1,partie1_2);
-                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                    //   YYABORT;
-                    // }
-                    // if (current_class_level==0)
-                    //   miseajour($2,"Variable",current_type,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
-                    // else {
-                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   miseajour($2,"Variable",current_type,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
-                    // }
                     // if (strcmp(getType($2,current_class_level,"Variable"),partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                     //   if(strcmp(getType($2,current_class_level,"Variable"),"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                     //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -617,37 +599,11 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     // remplir_quad("=",partie1_2,"<vide>",$2);
 
                     // matrix
-
-                    // sans affectation 
-
-
-                    // sprintf(taille,"%d",atoi($5)*atoi($7));
-                    // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                    //   YYABORT;
-                    // }
-                    // if (current_class_level==0)
-                    //   search($2,"Matrice",current_type,"-",taille,$5,$7,"GLOBAL","SYNTAXIQUE",0);
-                    // else {
-                    //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //   search($2,"Matrice",current_type,"-",taille,$5,$7,class_emplacement,"SYNTAXIQUE",0);
-                    // } 
                     // remplir_quad("BOUNDS","1",$5,"<vide>");
                     // remplir_quad("BOUNDS","2",$7,"<vide>");
                     // remplir_quad("ADEC",$2,"<vide>","<vide>");
 
                     //avec affectation
-                      // diviserChaine($4,partie1_1,partie1_2);
-                      // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                      //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                      //   YYABORT;
-                      // }
-                      // if (current_class_level==0)
-                      //   miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
-                      // else {
-                      //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                      //   miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
-                      // }
                       // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
                       //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
                       //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
@@ -825,9 +781,9 @@ ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM
 
 // ------------------------------ EXPRESSION BLOCK -----------------------------------------------------------------------------------
 
-EXPRESSION: EXPRESSION_ITEM
-          | ARRAY_INSTANCE
-          | OBJECT_CREATION
+EXPRESSION: EXPRESSION_ITEM {$$=strdup($1);}
+          | ARRAY_INSTANCE {$$=strdup("");}
+          | OBJECT_CREATION {$$=strdup("");}
 ;
 
 // ------------------------------ ARRAY BLOCK ---------------------------------------------------------------------------------------
@@ -835,12 +791,12 @@ EXPRESSION: EXPRESSION_ITEM
 ARRAY_INSTANCE: acco SUBARRAY_LIST accf
 ;
 
-SUBARRAY_LIST: SUBARRAY_ITEM
+SUBARRAY_LIST: SUBARRAY_ITEM 
              | SUBARRAY_LIST vg SUBARRAY_ITEM
 ;
 
 SUBARRAY_ITEM: EXPRESSION_ITEM
-             | ARRAY_INSTANCE
+             | ARRAY_INSTANCE 
 ;
 
 // ------------------------------ EXPRESSION ITEM BLOCK ----------------------------------------------------------------------------
