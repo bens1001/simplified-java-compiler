@@ -38,12 +38,12 @@ class Person {
 
     // Méthode qui retourne la moyenne des notes
     double getAverageGrade() {
-        if (grades.length == 0) {return 0;} // Eviter la division par zéro
+        if (grades == 0) {return 0;} // Eviter la division par zéro
         int sum = 0;
         for (int grade : grades) {
             sum += grade;
         }
-        return sum / grades.length;
+        return sum / grades;
     }
 }
 
@@ -51,8 +51,8 @@ class Person {
 class Main {
     public static void main() {
         // Création d'un objet avec un tableau de notes
-        int[] notes = {85, 90, 78, 92};
-        Person p = new Person(20, 'M', true, notes);
+        int[] notes = {{85, 90, 78, 92},{85, 90, 78, 92}, {85, 90, 78, 92}, {85, 90, 78, 92}};
+        Person p = new Person(20, 'M', true, notes),z;
 
         // Appel des méthodes
         p.displayInfo();
@@ -81,7 +81,7 @@ class Main {
 
         // Gestion des exceptions avec le type d'exception précisé
         try {
-            int result = 10 / 0; // Division par zéro
+            int result = 10 / 5; // Division par zéro
         } catch (ArithmeticException e) {
             System.out.println("An error occurred: " + e.getMessage());
         } finally {

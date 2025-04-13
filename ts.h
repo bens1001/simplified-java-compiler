@@ -29,7 +29,6 @@ typedef struct ElementNode
     char dimensions[20];
     char num_params[20];
     char scope[256];
-    char update[20];
     struct ElementNode *next;
     struct ElementNode *fifo_next;
 } ElementNode;
@@ -86,7 +85,7 @@ void initialisation()
 }
 
 // Insertion of lexical entities into the symbol table
-void inserer(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], char update[], int y)
+void inserer(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], int y)
 {
     switch (y)
     {
@@ -102,7 +101,6 @@ void inserer(char entite[], char code[], char type[], char val[], char taille[],
         strcpy(newNode->dimensions, strcmp(dimensions, "-1") ? dimensions : "0");
         strcpy(newNode->num_params, strcmp(num_params, "-1") ? num_params : "0");
         strcpy(newNode->scope, strcmp(scope, "-1") ? scope : "GLOBAL");
-        strcpy(newNode->update, update);
 
         newNode->next = table.tab[hash_idx];
         table.tab[hash_idx] = newNode;
@@ -168,7 +166,7 @@ void inserer(char entite[], char code[], char type[], char val[], char taille[],
     }
 }
 
-void search(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], char update[], int y)
+void search(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], int y)
 {
     switch (y)
     {
@@ -191,7 +189,7 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
 
         if (!exists)
         {
-            inserer(entite, code, type, val, taille, dimensions, num_params, scope, update, 0);
+            inserer(entite, code, type, val, taille, dimensions, num_params, scope, 0);
         }
         break;
     }
@@ -214,7 +212,7 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
 
         if (!exists)
         {
-            inserer(entite, code, type, val, taille, dimensions, num_params, scope, update, 1);
+            inserer(entite, code, type, val, taille, dimensions, num_params, scope, 1);
         }
         break;
     }
@@ -237,14 +235,14 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
 
         if (!exists)
         {
-            inserer(entite, code, type, val, taille, dimensions, num_params, scope, update, 2);
+            inserer(entite, code, type, val, taille, dimensions, num_params, scope, 2);
         }
         break;
     }
     }
 }
 
-void miseajour(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[], char update[])
+void miseajour(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[])
 {
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -268,26 +266,74 @@ void miseajour(char entite[], char code[], char type[], char val[], char taille[
                 strcpy(current->num_params, num_params);
             if (strcmp(scope, "-1") != 0)
                 strcpy(current->scope, scope);
-            strcpy(current->update, update);
         }
         current = current->next;
     }
 }
 
+char *get_element(const char *input, bool get_first)
+{
+    if (!input || strlen(input) == 0)
+        return strdup("");
+
+    char *copy = strdup(input);
+    char *token = strtok(copy, ".");
+    char *first = NULL;
+    char *last = NULL;
+
+    while (token)
+    {
+        if (strlen(token) > 0)
+        {
+            free(first);
+            first = strdup(token);
+            free(last);
+            last = strdup(token);
+        }
+        token = strtok(NULL, ".");
+    }
+
+    free(copy);
+
+    char *result = NULL;
+    if (get_first && first)
+    {
+        result = strdup(first);
+    }
+    else if (!get_first && last)
+    {
+        result = strdup(last);
+    }
+    else
+    {
+        result = strdup("");
+    }
+
+    free(first);
+    free(last);
+    return result;
+}
+
 char *getType(char entite[], const char *scope, char code[])
 {
-    int hash_idx = hash(entite);
+    char *base_name = get_element(entite, false);
+
+    int hash_idx = hash(base_name);
     ElementNode *current = table.tab[hash_idx];
-    while (current != NULL)
+
+    while (current)
     {
-        if (strcmp(current->name, entite) == 0 &&
+        if (strcmp(current->name, base_name) == 0 &&
             strcmp(current->code, code) == 0 &&
             (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0))
         {
+            free(base_name);
             return current->type;
         }
         current = current->next;
     }
+
+    free(base_name);
     return "NULL";
 }
 
@@ -323,20 +369,26 @@ bool check_idf_recursive_scope(const char *name, const char *scope, const char *
 
 bool idf_exists_same_scope(const char *name, const char *scope, const char *category)
 {
-    int hash_idx = hash(name);
+    char *base_name = get_element(name, false);
+
+    int hash_idx = hash(base_name);
     ElementNode *current = table.tab[hash_idx];
 
+    bool exists = false;
     while (current)
     {
-        if (strcmp(current->name, name) == 0 &&
-            strcmp(current->scope, scope) == 0 && // Même portée
+        if (strcmp(current->name, base_name) == 0 &&
+            strcmp(current->scope, scope) == 0 &&
             strcmp(current->code, category) == 0)
         {
-            return true;
+            exists = true;
+            break;
         }
         current = current->next;
     }
-    return false;
+
+    free(base_name);
+    return exists;
 }
 
 bool isConstructorValid(const char *constructorName, const char *current_scope)
@@ -430,16 +482,16 @@ void afficher()
 {
     printf("/************************* Table des symboles (IDF et constantes) *************************/\n");
     printf("___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________\n");
-    printf("\t|\t\t   Nom_Entite    \t\t| \tCode_Entite\t|\tType_Entite\t|  Val_Entite  |  Taille  |  Dimensions | Num_Params | \t\t\t\t Scope \t\t\t\t|   Last update   |\n");
+    printf("\t|\t\t   Nom_Entite    \t\t| \tCode_Entite\t|\tType_Entite\t|  Val_Entite  |  Taille  |  Dimensions | Num_Params | \t\t\t\t Scope \t\t\t\t|\n");
     printf("___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________\n");
 
     ElementNode *current = table.element_fifo_head;
     while (current != NULL)
     {
-        printf("\t| %45s |  %20s | %20s | %12s | %10s | %10s | %10s | %56s | %15s |\n",
+        printf("\t| %45s |  %20s | %20s | %12s | %10s | %10s | %10s | %56s |\n",
                current->name, current->code, current->type, current->val,
                current->taille, current->dimensions, current->num_params,
-               current->scope, current->update);
+               current->scope);
         current = current->fifo_next;
     }
 
@@ -465,23 +517,6 @@ void afficher()
     {
         printf("\t|%10s |%12s | \n", currentSeparator->name, currentSeparator->type);
         currentSeparator = currentSeparator->fifo_next;
-    }
-}
-
-void diviserChaine(const char *chaine, char *partie1, char *partie2)
-{
-    const char *separateur = strchr(chaine, '-');
-    if (separateur)
-    {
-        size_t longueurPartie1 = separateur - chaine;
-        strncpy(partie1, chaine, longueurPartie1);
-        partie1[longueurPartie1] = '\0';
-        strcpy(partie2, separateur + 1);
-    }
-    else
-    {
-        strcpy(partie1, chaine);
-        partie2[0] = '\0';
     }
 }
 

@@ -26,217 +26,217 @@ exception {letter}*"Exception"
 "boolean" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwBOOLEAN;
 }
 "break" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwBREAK;
 }
 "case" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwCASE;
 }
 "catch" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwCATCH;
 }
 "char" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwCHAR;
 }
 "class" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwCLASS;
 }
 "continue" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwCONTINUE;
 }
 "default" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwDEFAULT;
 }
 "do" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwDO;
 }
 "double" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwDOUBLE;
 }
 "else" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwELSE;
 }
 "final" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwFINAL;
 }
 "finally" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwFINALLY;
 }
 "float" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwFLOAT;
 }
 "for" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwFOR;
 }
 "if" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwIF;
 }
 "import" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwIMPORT;
 }
 "int" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwINT;
 }
 "main"|"Main" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str = strdup(yytext);
 	return kwMAIN;
 }
 "new" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwNEW;
 }
 "private" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwPRIVATE;
 }
 "public" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwPUBLIC;
 }
 "return" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwRETURN;
 }
 "static" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwSTATIC;
 }
 "switch" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwSWITCH;
 }
 "System.out.println" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwPRINTLN;
 }
 "System.out.print" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwPRINT;
 }
 "this" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwTHIS;
 }
 "try" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwTRY;
 }
 "void" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwVOID;
 }
 "while" {
 	ECHO; 
 	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1","-1",1);
+	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwWHILE;
 }
@@ -244,14 +244,14 @@ exception {letter}*"Exception"
 {exception} {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Exception Type","-","-","-","-","-",current_scope,"LEXICAL",0);
+	search(yytext,"Exception Type","-","-","-","-","-",current_scope,0);
 	yylval.str = strdup(yytext);
 	return EXCEPTION;
 }
 {bool} {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"IDF","boolean","-","-","-","-","-","LEXICAL",0);
+	search(yytext,"IDF","boolean","-","-","-","-","-",0);
 	yylval.str=strdup(yytext);
 	return BOOL;
 }
@@ -265,15 +265,15 @@ exception {letter}*"Exception"
     if (atof(yytext) >= -3.4e38 && atof(yytext) <= 3.4e38 && precision <= 7) {
         ECHO;
         nb_character += strlen(yytext);
-		search(yytext,"Constant","float","-","-","-","-","-","LEXICAL",0);
-        yylval.str = strdup(yytext);
+		search(yytext,"Constant","float","-","-","-","-","-",0);
+        yylval.flt = atof(yytext);
         return FLOAT;
     }
     else if (atof(yytext) >= -1.7e308 && atof(yytext) <= 1.7e308 && precision <= 16) {
         ECHO;
         nb_character += strlen(yytext);
-		search(yytext,"Constant","double","-","-","-","-","-","LEXICAL",0);
-        yylval.str = strdup(yytext);
+		search(yytext,"Constant","double","-","-","-","-","-",0);
+       	yylval.dbl = atof(yytext);
         return DOUBLE;
     }
     else {
@@ -284,8 +284,8 @@ exception {letter}*"Exception"
 	if (atoi(yytext) >= -32768 && atoi(yytext) <= 32767) { 
 		ECHO;
 		nb_character += strlen(yytext);
-		search(yytext,"Constant","int","-","-","-","-","-","LEXICAL",0);
-		yylval.str=strdup(yytext);
+		search(yytext,"Constant","int","-","-","-","-","-",0);
+		yylval.intg=atoi(yytext);
 		return INTEGER;
     } 
 	else{
@@ -313,175 +313,175 @@ exception {letter}*"Exception"
 ">=" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opGE;
 }
 ">" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opGT;
 }
 "==" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opEQ;
 }
 "<=" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opLE;
 }
 "<" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opLT;
 }
 "!=" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opNE;
 }
 "||" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opOR;
 }
 "&&" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opAND;
 }
 "!" { 
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opNOT;
 }
 "+" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opADD;
 }
 "-" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opMINUS;
 }
 "*" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opMUL;
 }
 "/" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opDIV;
 }
 "%" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opMOD;
 }
 "=" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return opASSIGN;
 }
 ";" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return pvg;
 }
 "(" {
     ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return po;
 }
 ")" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return pf;
 }
 "{" {
     ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return acco;
 }
 "}" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return accf;
 }
 "[" {
     ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return dimo;
 }
 "]" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return dimf;
 }
 "." {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return pt;
 }
 "," {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return vg;
 }
 ":" {
 	ECHO;
 	nb_character += strlen(yytext);
-	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1","-1",2);
+	search(yytext,"Separateur","-1","-1","-1","-1","-1","-1",2);
 	yylval.str=strdup(yytext);
 	return dp;
 }
