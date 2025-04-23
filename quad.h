@@ -12,7 +12,7 @@ typedef struct qdr
 	char tempo[100];  // temporaire 
 } qdr;
 
-qdr quad[100]; 
+qdr quad[200]; 
 
 // creation et remplissage du quadruplet
 void remplir_quad(char opr[], char opr1[], char opr2[], char tempo[]) 

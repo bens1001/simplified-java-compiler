@@ -1444,9 +1444,16 @@ DOWHILE_PREFIX: kwDO
 DOWHILE_LOOP: DOWHILE_PREFIX acco INSTRUCTION_LIST accf kwWHILE po EXPRESSION pf
                   {
                     if (strcmp($7.type, "boolean") != 0) {
-                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",file_name, nb_line, nb_character, $7.value);
-                      YYABORT;
+                    printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",file_name, nb_line, nb_character, $7.value);
+                    YYABORT;
                     }
+                    do_stack_top++;
+                    do_deb_stack[dowhile_stack_top] = deb_dowhile;
+                    do_fin_stack[dowhile_stack_top] = fin_dowhile;
+
+                    deb_dowhile = qc - 1;
+                    fin_dowhile = qc - 1;
+
                     sprintf(i,"%d",deb_dowhile);
                     mise_jr_quad(qc-1,2,i);
 

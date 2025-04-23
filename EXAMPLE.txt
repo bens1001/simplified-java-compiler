@@ -17,11 +17,15 @@ class Person {
     
     void display() {
         // Fixed array iteration
-        for(int i=0; i<4; i++) { // First dimension size=4
+        boolean b = true;
+        do { // First dimension size=4
             for(int j=0; j<50; j++) { // Second dimension size=50
+                    for(int j=0; j<2; j++) { // Second dimension size=50
+                        k++;
+                    }
                 System.out.println(this.grades[5][8][0][0]);
             }
-        }
+        }while(true)
         int i=1;
     }
 }
@@ -36,10 +40,10 @@ class Course {
     }
     
     void printCode() {
-        for(int i=0; i<6; i++) {
-            System.out.print(this.code[4]);
+        int i;
+        while (i<6){
+            i++;
         }
-        int i=1;
         System.out.println();
     }
 }
@@ -77,11 +81,11 @@ class Student {
     
     int validateCourses() {
         for(int i=0; i<5; i++) {
-            if(this.courses.duration > 10) {
+            if(this.courses.duration > 2) {
                 System.out.println("Long course");
             }
         }
-        return 5;
+        return 5; 
     }
 }
 
@@ -153,12 +157,19 @@ class Main {
         // int x = p1.display(); // display() returns void
 
         boolean v = true;
-        if( v ) {
+        if( v && true) {
             System.out.print("Present ");
             x++;
         } else {
             System.out.print("Absent ");
             x--;
+        }
+        try {
+            int result = 10 / 0; // Division par zéro
+        } catch (ArithmeticException e) {
+            System.out.println("An error occurred: " + e.getMessage());
+        } finally {
+            System.out.println("Execution completed.");
         }
     }
 }
