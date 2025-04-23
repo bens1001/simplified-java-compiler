@@ -23,11 +23,12 @@ typedef struct ElementNode
     int state;
     char name[96];
     char code[20];
-    char type[20];
+    char type[50];
     char val[20];
     char taille[20];
     char dimensions[20];
     char num_params[20];
+    char *param_types[20];
     char scope[256];
     struct ElementNode *next;
     struct ElementNode *fifo_next;
@@ -179,7 +180,8 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
         while (current != NULL)
         {
             if (strcmp(current->name, entite) == 0 &&
-                strcmp(current->scope, scope) == 0)
+                strcmp(current->scope, scope) == 0 &&
+                strcmp(current->code, code) == 0)
             {
                 exists = true;
                 break;
@@ -242,7 +244,7 @@ void search(char entite[], char code[], char type[], char val[], char taille[], 
     }
 }
 
-void miseajour(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[])
+void update(char entite[], char code[], char type[], char val[], char taille[], char dimensions[], char num_params[], char scope[])
 {
     int hash_idx = hash(entite);
     ElementNode *current = table.tab[hash_idx];
@@ -250,10 +252,9 @@ void miseajour(char entite[], char code[], char type[], char val[], char taille[
     while (current != NULL)
     {
         if (strcmp(current->name, entite) == 0 &&
-            (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0))
+            (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0) &&
+            strcmp(current->code, code) == 0)
         {
-            if (strcmp(code, "-1") != 0)
-                strcpy(current->code, code);
             if (strcmp(type, "-1") != 0)
                 strcpy(current->type, type);
             if (strcmp(val, "-1") != 0)
@@ -264,11 +265,72 @@ void miseajour(char entite[], char code[], char type[], char val[], char taille[
                 strcpy(current->dimensions, dimensions);
             if (strcmp(num_params, "-1") != 0)
                 strcpy(current->num_params, num_params);
-            if (strcmp(scope, "-1") != 0)
-                strcpy(current->scope, scope);
         }
         current = current->next;
     }
+}
+
+void setParameterTypes(const char *name, const char *scope, const char *code, char *types[], int count)
+{
+    int hash_idx = hash(name);
+    ElementNode *current = table.tab[hash_idx];
+
+    int i;
+    while (current)
+    {
+        if (strcmp(current->name, name) == 0 &&
+            strcmp(current->scope, scope) == 0 &&
+            strcmp(current->code, code) == 0)
+        {
+
+            for (i = 0; i < count; i++)
+            {
+                if (types[i])
+                {
+                    current->param_types[i] = strdup(types[i]);
+                }
+                else
+                {
+                    current->param_types[i] = NULL;
+                }
+            }
+            break;
+        }
+        current = current->next;
+    }
+}
+
+char **getParameterTypes(const char *name, const char *scope, const char *code)
+{
+    int hash_idx = hash(name);
+    ElementNode *current = table.tab[hash_idx];
+
+    while (current)
+    {
+        if (strcmp(current->name, name) == 0 &&
+            strcmp(current->scope, scope) == 0 &&
+            strcmp(current->code, code) == 0)
+        {
+            return current->param_types;
+        }
+        current = current->next;
+    }
+    return NULL; // Not found
+}
+
+static char *concat(const char *a, const char *b)
+{
+    size_t la = strlen(a), lb = strlen(b);
+    size_t need = la + (la && lb ? 1 : 0) + lb + 1;
+    char *s = malloc(need);
+    s[0] = '\0';
+    if (la)
+        strcat(s, a);
+    if (la && lb)
+        strcat(s, ".");
+    if (lb)
+        strcat(s, b);
+    return s;
 }
 
 char *get_element(const char *input, bool get_first)
@@ -335,6 +397,107 @@ char *getType(char entite[], const char *scope, char code[])
 
     free(base_name);
     return "NULL";
+}
+
+char *getTypeRecursive(char entite[], const char *scope, char code[])
+{
+    char current_scope_copy[256];
+    strcpy(current_scope_copy, scope);
+    char *base_name = get_element(entite, false);
+
+    while (1)
+    {
+        int hash_idx = hash(base_name);
+        ElementNode *current = table.tab[hash_idx];
+
+        while (current)
+        {
+            if (strcmp(current->name, entite) == 0 &&
+                strcmp(current->code, code) == 0 &&
+                strcmp(current->scope, current_scope_copy) == 0)
+            {
+                free(base_name);
+                return current->type;
+            }
+            current = current->next;
+        }
+
+        char *last_dot = strrchr(current_scope_copy, '.');
+        if (!last_dot)
+            break;
+        *last_dot = '\0';
+    }
+    free(base_name);
+    return "NULL";
+}
+
+char *getValue(char entite[], const char *scope, char code[])
+{
+    char *base_name = get_element(entite, false);
+
+    int hash_idx = hash(base_name);
+    ElementNode *current = table.tab[hash_idx];
+
+    while (current)
+    {
+        if (strcmp(current->name, base_name) == 0 &&
+            strcmp(current->code, code) == 0 &&
+            (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0))
+        {
+            free(base_name);
+            return current->val;
+        }
+        current = current->next;
+    }
+
+    free(base_name);
+    return "NULL";
+}
+
+char *getLength(char entite[], const char *scope, char code[])
+{
+    char *base_name = get_element(entite, false);
+
+    int hash_idx = hash(base_name);
+    ElementNode *current = table.tab[hash_idx];
+
+    while (current)
+    {
+        if (strcmp(current->name, base_name) == 0 &&
+            strcmp(current->code, code) == 0 &&
+            (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0))
+        {
+            free(base_name);
+            return current->taille;
+        }
+        current = current->next;
+    }
+
+    free(base_name);
+    return "NULL";
+}
+
+char *getNumParams(char entite[], const char *scope, char code[])
+{
+    char *base_name = get_element(entite, false);
+
+    int hash_idx = hash(base_name);
+    ElementNode *current = table.tab[hash_idx];
+
+    while (current)
+    {
+        if (strcmp(current->name, base_name) == 0 &&
+            strcmp(current->code, code) == 0 &&
+            (strcmp(scope, "-1") == 0 || strcmp(current->scope, scope) == 0))
+        {
+            free(base_name);
+            return current->num_params;
+        }
+        current = current->next;
+    }
+
+    free(base_name);
+    return "0";
 }
 
 bool check_idf_recursive_scope(const char *name, const char *scope, const char *category)
@@ -407,75 +570,79 @@ bool isConstructorValid(const char *constructorName, const char *current_scope)
     return true;
 }
 
-// bool verif_index(char entite[], int current_class_level, char code[], char index[], char check[])
-// {
-//     char emplacement[20];
-//     if (current_class_level == 0)
-//         strcpy(emplacement, "MAIN");
-//     else
-//         sprintf(emplacement, "CLASS %d", current_class_level);
-
-//     int hash_idx = hash(entite);
-//     ElementNode *current = table.tab[hash_idx];
-
-//     while (current != NULL)
-//     {
-//         if (strcmp(current->name, entite) == 0 &&
-//             strcmp(current->code, code) == 0 &&
-//             strcmp(current->emplacement, emplacement) == 0)
-//         {
-
-//             if (strcmp(check, "Ligne") == 0)
-//                 return atof(current->ligne) >= atof(index);
-//             if (strcmp(check, "Colonne") == 0)
-//                 return atof(current->colonne) >= atof(index);
-//         }
-//         current = current->next;
-//     }
-//     return false;
-// }
-
-// bool verif_char(char entite[], int current_class_level, char code[], char check[])
-// {
-//     char emplacement[20];
-//     if (current_class_level == 0)
-//         strcpy(emplacement, "MAIN");
-//     else
-//         sprintf(emplacement, "CLASS %d", current_class_level);
-
-//     int hash_idx = hash(entite);
-//     ElementNode *current = table.tab[hash_idx];
-
-//     while (current != NULL)
-//     {
-//         if (strcmp(current->name, entite) == 0 &&
-//             strcmp(current->code, code) == 0 &&
-//             strcmp(current->emplacement, emplacement) == 0)
-//         {
-
-//             return atof(current->taille) >= strlen(check) - 2;
-//         }
-//         current = current->next;
-//     }
-//     return false;
-// }
-
-bool verif_param(char entite[], int nb_param)
+int startsWith(const char *str, const char *prefix)
 {
-    int hash_idx = hash(entite);
-    ElementNode *current = table.tab[hash_idx];
+    size_t lenPrefix = strlen(prefix);
+    size_t lenStr = strlen(str);
 
-    while (current != NULL)
+    if (lenPrefix > lenStr)
+        return false;
+
+    return strncmp(str, prefix, lenPrefix) == 0;
+}
+
+int endsWith(const char *str, const char *suffix)
+{
+    size_t lenStr = strlen(str);
+    size_t lenSuffix = strlen(suffix);
+
+    if (lenSuffix > lenStr)
+        return 0;
+
+    // Compare the tail of str with suffix
+    return strncmp(str + lenStr - lenSuffix, suffix, lenSuffix) == 0;
+}
+
+int getArraySizes(const char *t, int sizes[])
+{
+    int count = 0;
+    const char *p = t;
+
+    while (*p)
     {
-        if (strcmp(current->name, entite) == 0 &&
-            strcmp(current->code, "Fonction") == 0)
+        if (*p == '[')
         {
+            ++p;
 
-            return atof(current->taille) == nb_param;
+            if (*p == ']')
+            {
+                sizes[count++] = -1;
+                ++p;
+            }
+            else
+            {
+                int val = 0;
+                while (isdigit((unsigned char)*p))
+                {
+                    val = val * 10 + (*p - '0');
+                    ++p;
+                }
+                sizes[count++] = val;
+                if (*p == ']')
+                    ++p;
+            }
         }
-        current = current->next;
+        else
+        {
+            ++p;
+        }
     }
-    return false;
+
+    return count;
+}
+
+char *getBaseType(const char *t)
+{
+    char *b = strdup(t);
+    char *br = strchr(b, '[');
+    if (br)
+        *br = '\0';
+    return b;
+}
+
+bool isNumericType(const char *type)
+{
+    return startsWith(type, "int") || startsWith(type, "float") || startsWith(type, "double");
 }
 
 void afficher()
@@ -491,7 +658,9 @@ void afficher()
         printf("\t| %45s |  %20s | %20s | %12s | %10s | %10s | %10s | %56s |\n",
                current->name, current->code, current->type, current->val,
                current->taille, current->dimensions, current->num_params,
-               current->scope);
+               strcmp(current->scope, "GLOBAL") == 0
+                   ? current->scope
+                   : (strncmp(current->scope, "GLOBAL.", 7) == 0 ? current->scope + 7 : current->scope));
         current = current->fifo_next;
     }
 

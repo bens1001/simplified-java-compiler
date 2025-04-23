@@ -1,91 +1,164 @@
-import package.subpackage.ClassName;
+import edu.example.ArrayTools;
+import edu.example.CharUtils;
 
 class Person {
-    // Attributs de la classe
-    int[] age;
-    char gender; // 'M' pour masculin, 'F' pour féminin
+    int age;
+    char[1] gender;
     boolean isStudent;
-    int[][50][][275] grades; // Tableau pour stocker les notes
-
-    // Constructeur
-    Person(int age, char gender, boolean isStudent, int[] grades) {
+    int[7][50][20][275] grades;
+    
+    // Constructor with explicit this. assignments
+    Person(int age, char[1] gender, boolean isStudent, int[7][50][20][275] grades) {
         this.age = age;
         this.gender = gender;
         this.isStudent = isStudent;
         this.grades = grades;
     }
-
-    // Méthode pour afficher les informations
-    void displayInfo(int[] test) {
-        System.out.println("Age: " + age);
-        System.out.println("Gender: " + gender);
-        System.out.println("Student: " + isStudent);
-        System.out.print("Grades: ");
-        for (int grade : grades) {
-            System.out.print(grade + " ");
+    
+    void display() {
+        // Fixed array iteration
+        for(int i=0; i<4; i++) { // First dimension size=4
+            for(int j=0; j<50; j++) { // Second dimension size=50
+                System.out.println(this.grades[5][8][0][0]);
+            }
         }
-        System.out.println();
-    }
-
-    // Méthode pour tester une condition
-    void checkEligibility() {
-        if (age >= 18) {
-            System.out.println("Eligible for voting.");
-        } else {
-            System.out.println("Not eligible for voting.");
-        }
-    }
-
-    // Méthode qui retourne la moyenne des notes
-    double getAverageGrade() {
-        if (grades == 0) {return 0;} // Eviter la division par zéro
-        int sum = 0;
-        for (int grade : grades) {
-            sum += grade;
-        }
-        return sum / grades;
+        int i=1;
     }
 }
 
-// Classe principale pour tester Person
+class Course {
+    char[6] code;
+    int duration;
+    
+    Course(char[6] code, int duration) {
+        this.code = code;
+        this.duration = duration;
+    }
+    
+    void printCode() {
+        for(int i=0; i<6; i++) {
+            System.out.print(this.code[4]);
+        }
+        int i=1;
+        System.out.println();
+    }
+}
+
+class GradeBook {
+    int[10][5] scores; // 10 students, 5 subjects
+    
+    GradeBook(int[10][5] scores) {
+        this.scores = scores;
+    }
+    
+    void processGrades() {
+        for(int i=0; i<10; i++) {
+            for(int j=0; j<5; j++) {
+                if(this.scores[3][2] < 0) {
+                    System.out.println("Invalid grade");
+                    i = i + 1;
+                }else{
+                    i = i - 1;
+                }
+            }
+        }
+        int i=1;
+    }
+}
+
+class Student {
+    char[20] name;
+    Course courses;
+    
+    Student(char[20] name, Course courses) {
+        this.name = name;
+        this.courses = courses;
+    }
+    
+    int validateCourses() {
+        for(int i=0; i<5; i++) {
+            if(this.courses.duration > 10) {
+                System.out.println("Long course");
+            }
+        }
+        return 5;
+    }
+}
+
+class Attendance {
+    boolean[5][7] records; // 5 days, 7 periods
+    
+    Attendance(boolean[5][7] records) {
+        this.records = records;
+    }
+    
+    void checkAttendance() {
+        for(int i=0; i<5; i++) {
+            for(int j=0; j<7; j++) {
+                if(this.records[2][3]>5) {
+                    System.out.print("Present ");
+                    i++;
+                } else {
+                    System.out.print("Absent ");
+                    i--;
+                }
+            }
+            System.out.println();
+        }
+    }
+}
+
 class Main {
     public static void main() {
-        // Création d'un objet avec un tableau de notes
-        int[] notes = {{85, 90, 78, 92},{85, 90, 78, 92}, {85, 90, 78, 92}, {85, 90, 78, 92}};
-        Person p = new Person(20, 'M', true, notes),z;
+        // Valid object creation
+        int[7][50][20][275] grades = {{{{50},{50},{23},{12}},{{50},{50},{23},{12}}},{{{50},{50},{23},{12}},{{50},{50},{23},{12}}}};
+        Person p1 = new Person(20, 'M', true, grades);
+        
+        p1.display();
+        // Char array initialization
+        char[6] courseCode = {'C','S','1','0','0','1'};
+        Course cs101 = new Course(courseCode, 4);
 
-        // Appel des méthodes
-        p.displayInfo();
-        p.checkEligibility();
-        System.out.println("Average Grade: " + p.getAverageGrade());
+        int x=5;
+        
+        // 💡 Semantic Error Examples (Commented) 💡
+        
+        // 2. Type mismatch
+        // int[5] numbers = {'A','B','C'}; // char[] to int[]
+        
+        // 3. Array bounds violation
+        // grades[4][0][0][0] = 100; // First dimension size=4
+        
+        // 4. Dimension mismatch
+        // char[3] shortCode = {'A','B'}; 
+        // Course c = new Course(shortCode, 2); // Needs char[6]
+        
+        // 5. Invalid assignment
+        // cs101.duration = true; // boolean to int
+        
+        // 6. Undeclared variable
+        // address = {'C','a','m','p','u','s'}; // No 'address' declaration
+        
+        // 7. Parameter count mismatch
+        char[20] studentCode = {'C','S','1','0','0','1'};
+        Student s = new Student(studentCode,cs101); // Missing courses parameter
+        x = s.validateCourses();
+        // 8. Invalid array access
+        // courseCode[6] = 'X'; // Size=6, max index=5
+        
+        // 9. Type in operation
+        // boolean res = 5 + true; // int + boolean
+        
+        // 10. Void return usage
+        // int x = p1.display(); // display() returns void
 
-        // Structure de contrôle switch
-        int choice = 1;
-        switch (choice) {
-            case 1:
-                System.out.println("Choice is 1");
-                break;
-            case 2:
-                System.out.println("Choice is 2");
-                break;
-            default:
-                System.out.println("Invalid choice");
-        }
-
-        // Boucle while
-        int i = 0;
-        while (i < 3) {
-            System.out.println("Iteration: " + i);
-            i++;
-        }
-
-        // Gestion des exceptions avec le type d'exception précisé
-        try {
-            int result = 10 / 5; // Division par zéro
-        } catch (ArithmeticException e) {
-            System.out.println("An error occurred: " + e.getMessage());
-        } finally {
-            System.out.println("Execution completed.");
+        boolean v = true;
+        if( v ) {
+            System.out.print("Present ");
+            x++;
+        } else {
+            System.out.print("Absent ");
+            x--;
         }
     }
 }

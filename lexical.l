@@ -65,13 +65,6 @@ exception {letter}*"Exception"
 	yylval.str=strdup(yytext);
 	return kwCLASS;
 }
-"continue" {
-	ECHO; 
-	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
-	yylval.str=strdup(yytext);
-	return kwCONTINUE;
-}
 "default" {
 	ECHO; 
 	nb_character += strlen(yytext);
@@ -99,13 +92,6 @@ exception {letter}*"Exception"
 	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwELSE;
-}
-"final" {
-	ECHO; 
-	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
-	yylval.str=strdup(yytext);
-	return kwFINAL;
 }
 "finally" {
 	ECHO; 
@@ -162,13 +148,6 @@ exception {letter}*"Exception"
 	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
 	yylval.str=strdup(yytext);
 	return kwNEW;
-}
-"private" {
-	ECHO; 
-	nb_character += strlen(yytext);
-	search(yytext,"Keyword","-1","-1","-1","-1","-1","-1",1);
-	yylval.str=strdup(yytext);
-	return kwPRIVATE;
 }
 "public" {
 	ECHO; 

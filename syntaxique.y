@@ -9,12 +9,21 @@ int nb_line=1;
 int nb_character=0;
 char *file_name;
 
-char typeIDF[20];
 char current_type[20];
+char current_IDF[20];
+
+char method_return_type[32];
+bool has_returned=false;
 
 int parameter_counter=0;
 char parameters_value[20];
+char *parameter_types[20];
+char *argument_types[20];
 char dimension_value[20];
+
+int array_counter=0;
+
+int dimension_counter=0;
 
 char string_size[20];
 char string_message[20];
@@ -22,23 +31,55 @@ char string_message[20];
 int for_scope_parser_counter=0;
 
 char i[20];
+int qc;
+int tmp=0;
+char temp[20];
+int cond_stack[100];
+int cond_top = -1;
+
 int deb_else;
 int fin_if;
+int deb_else_stack[100];
+int fin_if_stack[100];
+int if_stack_top = -1;
+
+int fin_for;
+int deb_for;
+int for_deb_stack[100];
+int for_fin_stack[100];
+int for_stack_top = -1;
+
+int fin_while;
+int deb_while;
+int while_deb_stack[100];
+int while_fin_stack[100];
+int while_stack_top = -1;
+
 int fin_dowhile;
 int deb_dowhile;
-int qc;
+int do_deb_stack[100];
+int do_fin_stack[100];
+int do_stack_top = -1;
+
+int   method_count = 0;
+char *method_names[100];
+int   method_entry_qc[100];
+int   method_return_qc[100];
 
 char partie1_1[20];
 char partie2_1[20];
-char partie1_2[20];
-char partie2_2[20];
-char ch[20];
-char cat[20];
-int tmp=0;
-char temp[20];
 
 char tab[20];
 
+ struct object{
+      char *object_path;    
+      char *nature_path;  
+      char *attribute_type; 
+      int   is_method; 
+      char *value;
+    } object;
+ 
+struct object obj;
 %}
 
 %union {
@@ -47,18 +88,35 @@ char tab[20];
     float flt;
     double dbl;
     struct {
-        char* value;
-        char* type;
+      char* value;
+      char* type;
     } expression;
+    struct {
+      char *type;    
+      int   count; 
+    } array;
+    struct {
+      char *object_path;    
+      char *nature_path;  
+      char *attribute_type; 
+      int   is_method; 
+      char *value;
+    } object;
 }
 
-%type <str>BASE_TYPE STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX CONDITION LOGICAL_OPERATOR COMPARISON_OPERATOR IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE OPTIONAL_MULTIDIMENSION METHOD_SUFFIX ENTITY_ITEM_SUFFIX OBJECT_NAME OBJECT_ACCESS_METHOD OBJECT_ACCESS_SUFFIX OBJECT_ACCESS_SEQUENCE IMPORT_PATH_SUFFIX MULTIDIMENSION_ACCESS OBJECT_ACCESS OBJECT_CREATION 
+%type <str>BASE_TYPE STRING_MESSAGE MESSAGE_CONCATENATION VARIABLE_MESSAGE INDEX IMPORT_PATH NUMERIC_TYPE TYPE OBJECT_TYPE OPTIONAL_MULTIDIMENSION METHOD_SUFFIX IMPORT_PATH_SUFFIX OBJECT_CREATION OBJECT_NAME
 ;
 
-%type <expression> EXPRESSION_ITEM EXPRESSION ARRAY_INSTANCE SUBARRAY_LIST SUBARRAY_ITEM OPTIONAL_ASSIGN
+%type <expression> EXPRESSION GLOBAL_EXPRESSION PRIMARY UNARY MULTIPLICATIVE ADDITIVE RELATIONAL EQUALITY LOGICAL_AND LOGICAL_OR 
 ;
 
-%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwCONTINUE kwDEFAULT kwDO kwDOUBLE kwELSE kwFINAL kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPRIVATE kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE 
+%type  <array> SUBARRAY_LIST SUBARRAY_ITEM ARRAY_INSTANCE
+;
+
+%type <object> OBJECT_ACCESS OBJECT_ACCESS_SUFFIX MULTIDIMENSION_ACCESS OBJECT_ACCESS_TAIL
+;
+
+%token <str>kwBOOLEAN kwBREAK kwCASE kwCHAR kwCATCH kwCLASS kwDEFAULT kwDO kwDOUBLE kwELSE kwFINALLY kwFLOAT kwFOR kwIF kwIMPORT kwINT kwMAIN kwNEW kwPUBLIC kwRETURN kwSTATIC kwSWITCH kwPRINT kwPRINTLN kwTHIS kwTRY kwVOID kwWHILE 
 ;
 
 %token <str> EXCEPTION BOOL STRING IDF 
@@ -76,16 +134,15 @@ char tab[20];
 %token <flt> FLOAT
 ;
 
-
 %start JAVA
 
 %right opASSIGN 
-%left opADD opMINUS
-%left opMUL opDIV opMOD
-%left opGE opGT opEQ opLE opLT opNE
 %left opOR
 %left opAND 
-%left opNOT
+%right opNOT
+%nonassoc opGE opGT opEQ opLE opLT opNE
+%left opADD opMINUS
+%left opMUL opDIV opMOD
 
 %%
 JAVA: {set_scope("GLOBAL")} IMPORT_LIST  CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
@@ -119,6 +176,10 @@ IMPORT_PATH_SUFFIX: pt IDF IMPORT_PATH_SUFFIX
                         char segment[256];
                         
                         if (strlen($3) == 0) {
+                          if (idf_exists_same_scope($2, current_scope, "Class")) {
+                            printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                            YYABORT;
+                          }
                           search($2, "Class", "-", "-", "-", "-", "-", current_scope, 0);
                         } else {
                           search($2, "Package", "-", "-", "-", "-", "-", current_scope, 0);
@@ -139,14 +200,7 @@ MAIN_CLASS: kwCLASS kwMAIN acco MAIN_METHOD accf
           | /* empty */
 ;
 
-MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN po METHOD_PARAMETER_LIST pf 
-                    {  
-                      enter_scope("main");
-                    }
-             acco INSTRUCTION_LIST accf 
-                    {
-                      exit_scope();
-                    }
+MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN {enter_scope("Main");} po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf {exit_scope();}
 ;
 
 // ------------------------------ CLASS BLOCK ----------------------------------------------------------------------------------
@@ -170,7 +224,7 @@ CLASS: kwCLASS IDF
               }
 ;
 
-// ---------------------------- ENTITY BLOCK (ATTRIBUTES AND METHODS) ---------------------------------------------------------
+// ---------------------------- ENTITY BLOCK  ---------------------------------------------------------
 
 ENTITY_LIST: ENTITY_LIST_NONEMPTY
            | /* empty */
@@ -180,31 +234,28 @@ ENTITY_LIST_NONEMPTY: ENTITY_ITEM
                     | ENTITY_LIST_NONEMPTY ENTITY_ITEM
 ;
 
-ENTITY_ITEM: TYPE IDF {enter_scope($2);} ENTITY_ITEM_SUFFIX 
-                {
-                  if (strcmp($4,"Method")==0) { 
-                    sprintf(parameters_value,"%d",parameter_counter); 
-                    strcpy(dimension_value,"-");
-                  }
-                  else {
-                    exit_scope();
-                    strcpy(parameters_value,"-");
-                    strcpy(dimension_value,getArrayDimension($1));
-                  }
-                  if (idf_exists_same_scope($2, current_scope, $4)) {
-                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
-                      YYABORT;
-                  }
-                  search($2, $4, $1, "-1", getArraySize($1), dimension_value,parameters_value ,current_scope, 0);
-                }
-           | CONSTRUCTOR
-;
-
-ENTITY_ITEM_SUFFIX: METHOD_SUFFIX {$$=strdup("Method");}
-                  | OPTIONAL_ASSIGN ATTRIBUTE_LIST pvg {$$ = strdup("Attribute");}
+ENTITY_ITEM: CONSTRUCTOR
+           | METHOD_DECL
+           | ATTRIBUTE_DECL 
 ;
 
 // ------------------------------ ATTRIBUTE BLOCK ---------------------------------------------------------------------------
+
+ATTRIBUTE_DECL: TYPE IDF 
+                {
+                  strcpy(current_IDF,$2); 
+                }
+                OPTIONAL_ASSIGN ATTRIBUTE_LIST pvg
+                {
+                  strcpy(parameters_value,"-");
+                  strcpy(dimension_value,getArrayDimension($1));
+                  if (idf_exists_same_scope($2, current_scope, "Attribute")) {
+                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                      YYABORT;
+                  }
+                  search($2, "Attribute", $1, "-", getArraySize($1), dimension_value,parameters_value ,current_scope, 0);
+                }
+;
 
 ATTRIBUTE_LIST: vg IDF OPTIONAL_ASSIGN ATTRIBUTE_LIST 
                   {  
@@ -212,41 +263,22 @@ ATTRIBUTE_LIST: vg IDF OPTIONAL_ASSIGN ATTRIBUTE_LIST
                       printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (strcmp(current_type,$3.type)!=0 && strcmp(current_type,"-")!=0 && strcmp($3.type,"-")!=0) {
-                      if((strcmp(current_type,"float")!=0 && strcmp(current_type,"double")!=0 )|| strcmp($3.type,"int")!=0 ){
-                        printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                        YYABORT;
-                      }
-                    }
-                    strcpy(dimension_value,getArrayDimension($1));
-                    search($2, "Attribute", current_type, "-1", getArraySize(current_type), dimension_value,"-" ,current_scope, 0);
+                    strcpy(dimension_value,getArrayDimension(current_type));
+                    search($2, "Attribute", current_type, "-", getArraySize(current_type), dimension_value,"-" ,current_scope, 0);
 
-
-                    // if(strcmp(getType($2,current_class_level,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($2,current_class_level,"Variable",partie1_2)) {
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : String too long.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-
-                    // array
-                    // remplir_quad("BOUNDS","1",$5,"<vide>");
-                    // remplir_quad("ADEC",$2,"<vide>","<vide>");
-
-
-                    // matrix
-                    // remplir_quad("BOUNDS","1",$5,"<vide>");
-                    // remplir_quad("BOUNDS","2",$7,"<vide>");
-                    // remplir_quad("ADEC",$2,"<vide>","<vide>");
-
-                    // remplir_quad("=",$3.value,"<vide>",$2);
+                    strcpy(current_IDF,$2);
                   }
-            |
+            | /* empty */
 ;
 
 // -------------------------- CONSTRUCTOR BLOCK ---------------------------------------------------------------------------------
 
-CONSTRUCTOR: IDF CONSTRUCTOR_SUFFIX 
+CONSTRUCTOR: IDF 
+              {
+                method_entry_qc[method_count] = qc;
+                method_names[method_count] = strdup($1);
+              }
+              CONSTRUCTOR_SUFFIX 
                 {
                   if(!isConstructorValid($1,current_scope)) {
                     printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Unvalid constructor.\n",file_name,nb_line,nb_character,$1);
@@ -254,41 +286,102 @@ CONSTRUCTOR: IDF CONSTRUCTOR_SUFFIX
                   }
                   sprintf(parameters_value,"%d",parameter_counter); 
                   search($1, "Constructor", "-", "-", "-", "-",parameters_value, current_scope, 0);
+                  setParameterTypes($1, current_scope, "Constructor", parameter_types, parameter_counter);
                 }
 ;
 
-CONSTRUCTOR_SUFFIX: po {parameter_counter = 0;}  CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf  
+CONSTRUCTOR_SUFFIX: po {parameter_counter = 0;}  CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf 
+                       {
+                        for_scope_parser_counter=0;
+                        method_return_qc[method_count] = qc;
+                        remplir_quad("BR", " ", "<vide>", "<vide>");
+                        method_count++;
+                       } 
 ;
 
-CONSTRUCTOR_PARAMETER_LIST: TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
+CONSTRUCTOR_PARAMETER_LIST: TYPE IDF
                                 {
-                                    search($2, "Parameter", $1, "-1", getArraySize($1),getArrayDimension($1), "-1", current_scope, 0);
+                                  parameter_counter++;
+                                  parameter_types[parameter_counter-1] = strdup($1);
+                                }
+                            CONSTRUCTOR_PARAMETER_ITEM
+                                {
+                                    search($2, "Parameter", $1, "-", getArraySize($1),getArrayDimension($1), "-1", current_scope, 0);
                                 }
                           | /* empty */
 
-CONSTRUCTOR_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} CONSTRUCTOR_PARAMETER_ITEM
+CONSTRUCTOR_PARAMETER_ITEM: vg TYPE IDF 
                                 {
-                                    search($3, "Parameter", $2, "-1", getArraySize($2),getArrayDimension($2), "-1", current_scope, 0);
+                                  parameter_counter++;
+                                  parameter_types[parameter_counter-1] = strdup($2);
+                                }
+                           CONSTRUCTOR_PARAMETER_ITEM
+                                {
+                                    search($3, "Parameter", $2, "-", getArraySize($2),getArrayDimension($2), "-1", current_scope, 0);
                                 }
                      | /* empty */
 ;                        
 
 // -------------------------- METHOD BLOCK ---------------------------------------------------------------------------------
 
-METHOD_SUFFIX: po {parameter_counter = 0;} METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf {exit_scope();}
+METHOD_DECL: TYPE IDF 
+                {
+                  enter_scope($2);
+                  strcpy(method_return_type, $1);
+                  method_entry_qc[method_count] = qc;
+                  method_names[method_count] = strdup($2); 
+                  parameter_counter = 0;
+                }
+             METHOD_SUFFIX
+                {
+                  sprintf(parameters_value,"%d",parameter_counter);
+                  strcpy(dimension_value,"-");
+                  if (idf_exists_same_scope($2, current_scope, "Method")) {
+                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
+                      YYABORT;
+                  }
+                  search($2, "Method", $1, "-", getArraySize($1), dimension_value,parameters_value ,current_scope, 0);
+                  setParameterTypes($2, current_scope, "Method", parameter_types, parameter_counter);
+                }
 ;
 
-METHOD_PARAMETER_LIST: TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
-                        {
-                            search($2, "Parameter", $1, "-1", getArraySize($1),getArrayDimension($1), "-1", current_scope, 0);
-                        }
+METHOD_SUFFIX: po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf 
+                {
+                  if (strcmp(method_return_type, "void") == 0) {
+                      method_return_qc[method_count] = qc;
+                      remplir_quad("BR", " ", "<vide>", "<vide>");
+                      method_count++;
+                  } else if (!has_returned) {
+                    printf("\nFile '%s', syntax error, line %d, column %d : Expected return for '%s'.\n",file_name,nb_line,nb_character,method_return_type);
+                    YYABORT;
+                  }
+                  exit_scope();              
+                  for_scope_parser_counter=0;
+                  has_returned=false;
+                }
+;
+
+METHOD_PARAMETER_LIST: TYPE IDF 
+                          {
+                            parameter_counter++; 
+                            parameter_types[parameter_counter-1] = strdup($1);
+                          } 
+                        METHOD_PARAMETER_ITEM
+                          {
+                            search($2, "Parameter", $1, "-", getArraySize($1),getArrayDimension($1), "-1", current_scope, 0);
+                          }
                      | /* empty */
 ;
 
-METHOD_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
-                        {
-                            search($3, "Parameter", $2, "-1", getArraySize($2),getArrayDimension($2), "-1", current_scope, 0);
-                        }
+METHOD_PARAMETER_ITEM: vg TYPE IDF 
+                          {
+                            parameter_counter++;
+                            parameter_types[parameter_counter-1] = strdup($2);
+                          } 
+                        METHOD_PARAMETER_ITEM
+                          {
+                              search($3, "Parameter", $2, "-", getArraySize($2),getArrayDimension($2), "-1", current_scope, 0);
+                          }
                      | /* empty */
 ;
 
@@ -296,17 +389,17 @@ METHOD_PARAMETER_ITEM: vg TYPE IDF {parameter_counter++;} METHOD_PARAMETER_ITEM
 
 TYPE: BASE_TYPE OPTIONAL_MULTIDIMENSION 
         {
-          strcat(tab,$1);strcat(tab,$2);
-          $$=strdup(tab);
-          strcpy(tab,"");
+          strcpy(current_type,$1);
+          strcat(current_type,$2);
+          $$=strdup(current_type);
         }
-    | OBJECT_TYPE {$$=strdup($1);}
+    | OBJECT_TYPE {$$=strdup($1);strcpy(current_type,$1);}
 ;
 
 BASE_TYPE: NUMERIC_TYPE {$$=strdup($1);}
-         | kwBOOLEAN {$$=strdup($1);strcpy(current_type,$1);}
-         | kwCHAR    {$$=strdup($1);strcpy(current_type,$1);}
-         | kwVOID    {$$=strdup($1);strcpy(current_type,$1);}
+         | kwBOOLEAN {$$=strdup($1);}
+         | kwCHAR    {$$=strdup($1);}
+         | kwVOID    {$$=strdup($1);}
 ;
 
 NUMERIC_TYPE: kwINT     {$$=strdup($1);strcpy(current_type,$1);}
@@ -321,86 +414,201 @@ OBJECT_TYPE: IDF
                   YYABORT;
                 }
                 $$=strdup($1);
-                strcpy(current_type,$1);
               }
 ;
 
 // ------------------------------ OBJECT BLOCK --------------------------------------------------------------------------------------
 
-OBJECT_CREATION: kwNEW IDF po ARGUMENT_LIST pf
-                    {
-                      if(!idf_exists_same_scope($2, "GLOBAL", "Class")) {
-                        printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Undeclared constructor.\n",file_name,nb_line,nb_character,$2);
-                        YYABORT;
-                      }
-                      $$=strdup($2);
+OBJECT_ACCESS: IDF 
+                  {
+                    int is_var = check_idf_recursive_scope($1, current_scope, "Variable");
+                    int is_param = check_idf_recursive_scope($1, current_scope, "Parameter");
+                    if (!is_var && !is_param && idf_exists_same_scope($1, current_scope, "Class")) {
+                        printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Undeclared identifier.\n",file_name,nb_line,nb_character,$1);
+                      YYABORT;
                     }
+                    obj.object_path = strdup($1);
+                    obj.nature_path = strdup(
+                      is_var
+                        ? "Variable"
+                        : "Parameter"
+                    );
+                    obj.attribute_type = strdup(
+                      is_var
+                        ? getTypeRecursive($1, current_scope, "Variable")
+                        : getTypeRecursive($1, current_scope, "Parameter")
+                    );
+                    obj.is_method = 0;
+                    dimension_counter=0;
+                  } 
+                OBJECT_ACCESS_TAIL
+                  {
+                    $$.object_path = strdup(obj.object_path);
+                    $$.nature_path = strdup(obj.nature_path);
+                    $$.attribute_type = strdup(obj.attribute_type);
+                    $$.is_method = obj.is_method;
+                  }
+             | kwTHIS 
+                  {
+                    char classScope[256];
+                    if (strchr(current_scope, '.')) {
+                      char *firstDot  = strchr(current_scope, '.');
+                      char *secondDot = strchr(firstDot + 1, '.');
+                      size_t len = secondDot
+                                   ? (secondDot - current_scope)
+                                   : strlen(current_scope);
+                      strncpy(classScope, current_scope, len);
+                      classScope[len] = '\0';
+                    } else {
+                      strcpy(classScope, current_scope);
+                    } 
+                    char *clsName = strchr(classScope, '.');
+                    if (clsName) ++clsName; else clsName = classScope; 
+                    obj.object_path = strdup("this");
+                    obj.nature_path = strdup("Variable");
+                    obj.attribute_type = strdup(clsName);
+                    obj.is_method = 0;
+                  } 
+                OBJECT_ACCESS_TAIL
+                  {
+                    $$.object_path = strdup(obj.object_path);
+                    $$.nature_path = strdup(obj.nature_path);
+                    $$.attribute_type = strdup(obj.attribute_type);
+                    $$.is_method = obj.is_method;
+                  }
+;            
+
+OBJECT_NAME: IDF {$$=strdup($1);} 
 ;
 
-OBJECT_ACCESS: OBJECT_ACCESS_SEQUENCE 
-                  {
-                    $$=strdup($1);
-                  }
-             | kwTHIS pt OBJECT_ACCESS_SEQUENCE 
-                  {
-                    strcat(tab,$1);
-                    strcat(tab,$2);
-                    strcat(tab,$3);
-                    $$=strdup(tab);
-                    strcpy(tab,"");
-                  }
-;           
-
-OBJECT_ACCESS_SEQUENCE: OBJECT_ACCESS_SUFFIX {$$=strdup($1);}
-                      | OBJECT_ACCESS_SEQUENCE pt OBJECT_ACCESS_SUFFIX 
-                          {
-                            strcat(tab,$1);
-                            strcat(tab,$2);
-                            strcat(tab,$3);
-                            $$=strdup(tab);
-                            strcpy(tab,"");
-                          }
+OBJECT_ACCESS_TAIL: pt OBJECT_ACCESS_SUFFIX OBJECT_ACCESS_TAIL {$$=$2;}
+                    | MULTIDIMENSION_ACCESS OBJECT_ACCESS_TAIL {$$=$1;}
+                    | /* empty */ {}
 ;
 
 OBJECT_ACCESS_SUFFIX: OBJECT_NAME 
                         {
-                          if (!check_idf_recursive_scope($1, current_scope, "Variable") && !check_idf_recursive_scope($1, current_scope, "Attribute") && !check_idf_recursive_scope($1, current_scope, "Parameter")) {
-                                printf("\nFile '%s', semantic error, line %d, column %d: Undeclared entity '%s'.\n",
-                                      file_name, nb_line, nb_character, $1);
-                                YYABORT;
+                          char *old_p = obj.object_path;
+                          char *old_n = obj.nature_path;
+                          char *old_t = obj.attribute_type;
+                          char cls_scope[256];
+                          snprintf(cls_scope,sizeof(cls_scope),"GLOBAL.%s",old_t);
+                          if (!check_idf_recursive_scope($1, cls_scope, "Attribute")) {
+                            if (!startsWith(old_t, "int") || !startsWith(old_t, "float") || !startsWith(old_t, "double") || !startsWith(old_t, "boolean") || !startsWith(old_t, "char")){
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Attribute not found in '%s'.\n",file_name,nb_line,nb_character,$1, old_t);
+                              YYABORT;
+                            }else{
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Type '%s' is not a class.\n",file_name,nb_line,nb_character,$1, old_t);
+                              YYABORT;
+                            }
                           }
-                          $$=strdup($1);
+                          obj.object_path = concat(old_p, $1);
+                          obj.nature_path = concat(old_n, "Attribute");
+                          obj.attribute_type = strdup(getType($1, cls_scope, "Attribute"));
+                          obj.is_method = 0;
+                          dimension_counter=0;
                         }
-                    | OBJECT_ACCESS_METHOD {$$=strdup($1);}
-;  
-
-OBJECT_NAME: IDF {$$=strdup($1);}
-;
-
-// ------------------------------------------------ MULTIDIMENSION ACCESS -------------------------------------------------------------
-
-MULTIDIMENSION_ACCESS: dimo INDEX dimf MULTIDIMENSION_ACCESS
-                         {
-                            strcat(tab,$1);
-                            strcat(tab,$2);
-                            strcat(tab,$3);
-                            strcat(tab,$4);
-                            $$=strdup(tab);
-                            strcpy(tab,"");
-                         }
-                       | /*empty*/
-                          {
-                            $$=strdup(tab);
-                            strcpy(tab,"");
+                    | IDF {parameter_counter=0;} po ARGUMENT_LIST pf 
+                        {
+                          char *old_p = obj.object_path;
+                          char *old_n = obj.nature_path;
+                          char *old_t = obj.attribute_type;
+                          char cls_scope[256];
+                          snprintf(cls_scope,sizeof(cls_scope),"GLOBAL.%s",old_t);
+                          if (!check_idf_recursive_scope($1, cls_scope, "Method") && !endsWith(old_t, "Exception")) {
+                            if (startsWith(old_t, "int") || startsWith(old_t, "float") || startsWith(old_t, "double") || startsWith(old_t, "boolean") || startsWith(old_t, "char")){
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Type '%s' is not a class.\n",file_name,nb_line,nb_character,$1, old_t);
+                              YYABORT;
+                            } else {
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Method not found in '%s'.\n",file_name,nb_line,nb_character,$1, old_t);
+                              YYABORT;
+                            }
+                            char buf[128];
+                            sprintf(buf, "%s()", $1);
+                            obj.object_path = concat(old_p, buf);
                           }
+
+                          if(atoi(getNumParams($1, cls_scope, "Method"))< parameter_counter){
+                            printf("\nFile '%s', syntaxic error, line %d, column %d, entity '%s': Too much arguments.\n",file_name,nb_line,nb_character,$1, old_p);
+                            YYABORT;
+                          } else if (atoi(getNumParams($1, cls_scope, "Method"))> parameter_counter){
+                            printf("\nFile '%s', syntaxic error, line %d, column %d, entity '%s': Too few arguments.\n",file_name,nb_line,nb_character,$1, old_p);
+                            YYABORT;
+                          }
+
+                          char **param_types = getParameterTypes($1, cls_scope, "Method");
+                          if (param_types) {
+                            int i;
+                            for (i = 0; i < parameter_counter; i++) {
+                              if (param_types[i] && argument_types[i] && strcmp(param_types[i], argument_types[i]) != 0) {
+                                printf("\nFile '%s', semantic error, line %d, column %d: Argument type mismatch for parameter %d in method '%s': expected '%s', got '%s'.\n",
+                                       file_name, nb_line, nb_character, i+1, $1, param_types[i], argument_types[i]);
+                                YYABORT;
+                              }
+                            }
+                          }
+
+                          obj.nature_path = concat(old_n, "Method");
+                          obj.attribute_type = strdup(getType($1, cls_scope, "Method"));
+                          obj.is_method = 1;
+                          dimension_counter=0;
+
+                          int call_q = qc;
+                          remplir_quad("BR", " ", "<vide>", "<vide>"); 
+                          int i;
+                          for (i = 0; i < method_count; i++) {
+                            if (strcmp(method_names[i], $1) == 0) {
+                              char target_entry[16],target_return[16];
+                              sprintf(target_entry, "%d", method_entry_qc[i]);
+                              sprintf(target_return, "%d", qc);
+                              mise_jr_quad(call_q, 2, target_entry);
+                              mise_jr_quad(method_return_qc[i], 2, target_return);
+                              break;
+                            }
+                          }
+                          obj.value = strdup(temp);
+                        }
 ;
 
-INDEX: EXPRESSION_ITEM 
+MULTIDIMENSION_ACCESS: dimo INDEX dimf 
+                        {
+                          char *old_path = obj.object_path;
+                          char *old_nature = obj.nature_path;
+                          char *old_type = obj.attribute_type;
+                          if (atoi(getArrayDimension(old_type)) == 0 && dimension_counter==0) {
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Unexpected indexing on non-array.\n",file_name,nb_line,nb_character,old_path);
+                              YYABORT;
+                          }
+                          else {
+                            int type_sizes[100];
+                            getArraySizes(old_type, type_sizes);
+                            if (type_sizes[dimension_counter] != -1  && atoi($2) > type_sizes[dimension_counter]) {
+                                printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Array access out of bounds '%s'.\n",file_name,nb_line,nb_character,old_path,old_type);
+                                YYABORT;
+                            }
+                            dimension_counter++;
+                          }
+                          char idxbuf[64]; sprintf(idxbuf, "[%s]", $2);
+                          char *new_path = malloc(strlen(old_path) + strlen(idxbuf) + 1);
+                          strcpy(new_path, old_path);
+                          strcat(new_path, idxbuf);
+                          char *new_nature = concat(old_nature, "index");
+                          char *new_type = strdup(old_type);
+                          char *b = strchr(new_type, '['); if (b) *b = '\0';
+                          obj.object_path = new_path;
+                          obj.nature_path = new_nature;
+                          obj.attribute_type = new_type;
+                          obj.is_method = 0;
+                        }
+;
+
+INDEX: EXPRESSION 
         { 
           if(strcmp($1.type,"int")!=0){
-            printf("\nFile '%s', line %d, character %d: semantic error : Unexpected index type '%s'.\n",file_name,nb_line,nb_character,$1);
+            printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Unexpected index type.\n",file_name,nb_line,nb_character,$1.value);
             YYABORT;
-          }else if (atoi($1.value)<1){
+          } 
+          if (atoi($1.value)<0){
             printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Negative dimension of vector.\n",file_name,nb_line,nb_character,$1.value);
             YYABORT;
           }
@@ -408,35 +616,48 @@ INDEX: EXPRESSION_ITEM
         }
 ;
 
-OBJECT_ACCESS_METHOD: IDF po ARGUMENT_LIST pf
-                  { 
-                    // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
-                    //   YYABORT;
-                    // }
-                    // if (!idf_existe($4,-1,"Fonction")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared function '%s'.\n",file_name,nb_line,nb_character,$4);
-                    //   YYABORT;
-                    // }
-                    // strcpy(typeIDF,getType($1,current_class_level,"Variable"));
-                    // if (strcmp(typeIDF,getType($4,-1,"Fonction"))!=0 && strcmp(typeIDF,"-")!=0) {
-                    //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(getType($4,-1,"Fonction"),"INTEGER")!=0 ){
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // if(!verif_param($4,parameter_counter)){
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Uncorrect number of arguments of '%s'.\n",file_name,nb_line,nb_character,$4);
-                    //   YYABORT;
-                    // }
-                    // if (current_class_level==0)
-                    //     search($4,"Idf","-","-","-","-","-","GLOBAL",3);
-                    //   else {
-                    //     sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                    //     search($4,"Idf","-","-","-","-","-",class_emplacement,3);
-                    // }
-                    $$ = strdup($1);
-                  }
+OBJECT_CREATION: kwNEW IDF {parameter_counter=0;} po ARGUMENT_LIST pf
+                    {
+                      if(!idf_exists_same_scope($2, "GLOBAL", "Class")) {
+                        printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Undeclared constructor.\n",file_name,nb_line,nb_character,$2);
+                        YYABORT;
+                      }
+
+                      if(atoi(getNumParams($2, concat("GLOBAL",$2), "Constructor"))< parameter_counter){
+                        printf("\nFile '%s', syntaxic error, line %d, column %d, entity '%s': Too much arguments.\n",file_name,nb_line,nb_character,$2);
+                        YYABORT;
+                      } else if (atoi(getNumParams($2, concat("GLOBAL",$2), "Constructor"))> parameter_counter){
+                        printf("\nFile '%s', syntaxic error, line %d, column %d, entity '%s': Too few arguments.\n",file_name,nb_line,nb_character,$2);
+                        YYABORT;
+                      }
+
+                      char **param_types = getParameterTypes($2, concat("GLOBAL",$2), "Constructor");
+                      if (param_types) {
+                        int i;
+                        for (i = 0; i < parameter_counter; i++) {
+                          if (param_types[i] && argument_types[i] && strcmp(param_types[i], argument_types[i]) != 0) {
+                            printf("\nFile '%s', semantic error, line %d, column %d: Argument type mismatch for parameter %d in constructor '%s': expected '%s', got '%s'.\n",
+                                   file_name, nb_line, nb_character, i+1, $2, param_types[i], argument_types[i]);
+                            YYABORT;
+                          }
+                        }
+                      }
+                      
+                      int call_q = qc;
+                      remplir_quad("BR", " ", "<vide>", "<vide>"); 
+                      int i;
+                      for (i = 0; i < method_count; i++) {
+                          if (strcmp(method_names[i], $2) == 0) {
+                              char target_entry[16],target_return[16];
+                              sprintf(target_entry, "%d", method_entry_qc[i]);
+                              sprintf(target_return, "%d", qc);
+                              mise_jr_quad(call_q, 2, target_entry);
+                              mise_jr_quad(method_return_qc[i], 2, target_return);
+                              break;
+                          }
+                      }
+                      $$=strdup($2);
+                    }
 ;
 
 // ------------------------------ ARGUMENT BLOCK ------------------------------------------------------------------------------------
@@ -446,13 +667,15 @@ ARGUMENT_LIST: ARGUMENT_ITEM
 ;
 
 ARGUMENT_ITEM:
-      EXPRESSION_ITEM
+      EXPRESSION
       { 
-        // parameter_counter++;
+        parameter_counter++;
+        argument_types[parameter_counter-1] = strdup($1.type);
       }
-    | ARGUMENT_ITEM vg EXPRESSION_ITEM
+    | ARGUMENT_ITEM vg EXPRESSION
       { 
-         // parameter_counter++
+        parameter_counter++;
+        argument_types[parameter_counter-1] = strdup($3.type);
       }
 ;
 
@@ -475,22 +698,64 @@ OPTIONAL_MULTIDIMENSION: dimo INDEX dimf OPTIONAL_MULTIDIMENSION
                             $$=strdup(tab);
                             strcpy(tab,"");
                           }
-                       | 
+                       | /* empty */
                           {
                             $$=strdup(tab);
                             strcpy(tab,"");
                           }
 ;
 
-OPTIONAL_ASSIGN: opASSIGN EXPRESSION
+OPTIONAL_ASSIGN: opASSIGN GLOBAL_EXPRESSION
                     {
-                      $$=$2;
+                      char *dst_base = getBaseType(current_type);
+                      char *src_base = getBaseType($2.type);
+                      int   dimension_dest = atoi(getArrayDimension(current_type));
+                      int   dimension_src  = atoi(getArrayDimension($2.type));
+                      if (!(strcmp(dst_base, "char") == 0 && strcmp(src_base, "char") == 0) && dimension_dest != dimension_src) {
+                         printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,current_IDF,current_type,$2.type);
+                         YYABORT;
+                      }
+
+                      if (dimension_dest > 0) {
+                          int dst_sizes[100], src_sizes[100];
+                          int count = getArraySizes(current_type, dst_sizes);
+                          getArraySizes($2.type, src_sizes);
+                          int i;
+                          for (i = 0; i < count; ++i) {
+                              if (dst_sizes[i] != -1 && src_sizes[i] != -1 && src_sizes[i] > dst_sizes[i]) {
+                                  printf("\nFile '%s', line %d, character %d: semantic error : Array too large '%s'.\n",file_name, nb_line, nb_character, $2.type);
+                                  YYABORT;
+                              }
+                          }
+                      }
+
+                      if (strcmp(dst_base, src_base) != 0) {
+                          if (isNumericType(dst_base) && isNumericType(src_base)) {
+                              if (dimension_dest == 0) {
+                                  double temp = atof($2.value);
+                                  char   buf[64];
+                                  if      (strcmp(dst_base, "int")    == 0) sprintf(buf, "%d",   (int)temp);
+                                  else if (strcmp(dst_base, "float")  == 0) sprintf(buf, "%f",   (float)temp);
+                                  else if (strcmp(dst_base, "double") == 0) sprintf(buf, "%lf",  temp);
+                                  else    strcpy(buf, $2.value);
+
+                                  free($2.value);
+                                  $2.value = strdup(buf);
+                              }
+                          }
+                          else {
+                              printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,current_IDF,current_type,$2.type);
+                              YYABORT;
+                          }
+                      }
+
+                      free(dst_base);
+                      free(src_base);
+
+                      update(current_IDF,"Attribute","-1",$2.value,"-1","-1","-1",current_scope);
+                      remplir_quad("=",$2.value,"<vide>",current_IDF);
                     }
                | /* empty */
-                    {
-                      $$.value = "-";
-                      $$.type = "-";
-                    }
 ;
 
 // ------------------------------ INSTRUCTION BLOCK ---------------------------------------------------------------------------
@@ -513,144 +778,41 @@ INSTRUCTION_ITEM: OUTPUT    pvg
 
 // ------------------------------ DECLARATION BLOCK -------------------------------------------------------------------------------
 
-DECLARATION: TYPE IDF OPTIONAL_ASSIGN
+DECLARATION: TYPE IDF
                   { 
                     if (idf_exists_same_scope($2, current_scope, "Variable")) {
                       printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    search($2, "Variable", $1, "-1", getArraySize($1),getArrayDimension($1), "-", current_scope, 0);
-
-                  // avec affectation
-
-                  // diviserChaine($4,partie1_1,partie1_2);
-                  // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                  //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                  //   YYABORT;
-                  // }
-                  // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
-                  //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
-                  //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                  //     YYABORT;
-                  //   }
-                  // }
-                  // remplir_quad("=",partie1_2,"<vide>",$2);
-
-                  // array
-
-                  // sans affectation
-
-                // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                //   YYABORT;
-                // }
-                // if (current_class_level==0)
-                //   search($2,"Vecteur",$1,"-",$4,$4,"-","GLOBAL",0);
-                // else {
-                //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                //   search($2,"Vecteur",$1,"-",$4,$4,"-",class_emplacement,0);
-                // }
-                // remplir_quad("BOUNDS","1",$5,"<vide>");
-                // remplir_quad("ADEC",$2,"<vide>","<vide>");
-
-                // avec affectation 
-                  
-                  // diviserChaine($4,partie1_1,partie1_2);
-                  // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                  //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                  //   YYABORT;
-                  // }
-                  // if (current_class_level==0)
-                  //   miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
-                  // else {
-                  //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                  //   miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
-                  // }
-                  // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
-                  //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
-                  //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                  //     YYABORT;
-                  //   }
-                  // }
-                  // remplir_quad("=",partie1_2,"<vide>",$2);
-
-                  // matrix
-
-                  // sans affectation
-
-                // sprintf(taille,"%d",atoi($4)*atoi($6));
-                // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                //   YYABORT;
-                // }
-                // if (current_class_level==0)
-                //   search($2,"Matrice",$1,"-",taille,$4,$6,"GLOBAL",0);
-                // else {
-                //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                //   search($2,"Matrice",$1,"-",taille,$4,$6,class_emplacement,0); 
-                // }
-                // remplir_quad("BOUNDS","1",$4,"<vide>");
-                // remplir_quad("BOUNDS","2",$6,"<vide>");
-                // remplir_quad("ADEC",$2,"<vide>","<vide>");
-
-                // avec affectation
-
-                  // diviserChaine($4,partie1_1,partie1_2);
-                  // if (idf_existe($2,current_class_level,"Variable") || idf_existe($2,current_class_level,"Vecteur") || idf_existe($2,current_class_level,"Matrice")) {
-                  //   printf("\nFile '%s', line %d, character %d: semantic error : Double declaration '%s'.\n",file_name,nb_line,nb_character,$2);
-                  //   YYABORT;
-                  // }
-                  // if (current_class_level==0)
-                  //   miseajour($2,"Variable",$1,partie1_2,"-","-","-","GLOBAL","SEMANTIQUE");
-                  // else {
-                  //   sprintf(class_emplacement,"LOCAL %d",current_class_level); 
-                  //   miseajour($2,"Variable",$1,partie1_2,"-","-","-",class_emplacement,"SEMANTIQUE");
-                  // }
-                  // if (strcmp($1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0) {
-                  //   if(strcmp($1,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
-                  //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                  //     YYABORT;
-                  //   }
-                  // }
-                  // remplir_quad("=",partie1_2,"<vide>",$2);
-                } 
-              VARIABLE_LIST 
+                    if(atoi(getArrayDimension($1))> 0){
+                      int type_sizes[100];
+                      int count = getArraySizes($1,type_sizes);
+                      char buffer_dim[100],buffer_size[100];
+                      int dim_counter;
+                      for(dim_counter=0;dim_counter<count;dim_counter++){
+                        if (type_sizes[dim_counter] != -1) {
+                          sprintf(buffer_dim,"%d",dim_counter+1);
+                          sprintf(buffer_size,"%d",type_sizes[dim_counter]);
+                          remplir_quad("BOUNDS",buffer_dim,buffer_size,"<vide>");
+                        }
+                      }
+                      remplir_quad("ADEC",$2,"<vide>","<vide>");
+                    }
+                    search($2, "Variable", $1, "NULL", getArraySize($1),getArrayDimension($1), "-", current_scope, 0);
+                    strcpy(current_IDF,$2);
+                  } 
+              OPTIONAL_ASSIGN VARIABLE_LIST 
 ;
 
 VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST 
                   {  
-                    if (idf_exists_same_scope($2, current_scope, "Attribute")) {
+                    if (idf_exists_same_scope($2, current_scope, "Variable")) {
                       printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Double declaration.\n",file_name,nb_line,nb_character,$2);
                       YYABORT;
                     }
-                    if (strcmp(current_type,$3.type)!=0 && strcmp(current_type,"-")!=0 && strcmp($3.type,"-")!=0) {
-                      if((strcmp(current_type,"float")!=0 && strcmp(current_type,"double")!=0 )|| strcmp($3.type,"int")!=0 ){
-                        printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                        YYABORT;
-                      }
-                    }
-                    strcpy(dimension_value,getArrayDimension($1));
-                    search($2, "Attribute", current_type, "-1", getArraySize(current_type), dimension_value,"-" ,current_scope, 0);
-
-
-                    // if(strcmp(getType($2,current_class_level,"Variable"),"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($2,current_class_level,"Variable",partie1_2)) {
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : String too long.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-
-                    // array
-                    // remplir_quad("BOUNDS","1",$5,"<vide>");
-                    // remplir_quad("ADEC",$2,"<vide>","<vide>");
-
-
-                    // matrix
-                    // remplir_quad("BOUNDS","1",$5,"<vide>");
-                    // remplir_quad("BOUNDS","2",$7,"<vide>");
-                    // remplir_quad("ADEC",$2,"<vide>","<vide>");
-
-                    // remplir_quad("=",$3.value,"<vide>",$2);
+                    strcpy(dimension_value,getArrayDimension(current_type));
+                    search($2, "Variable", current_type, "NULL", getArraySize(current_type), dimension_value,"-" ,current_scope, 0);
+                    strcpy(current_IDF,$2);
                   }
             |
 ;
@@ -685,107 +847,92 @@ MESSAGE_CONCATENATION: opADD VARIABLE_MESSAGE opADD STRING_MESSAGE
                      | opADD VARIABLE_MESSAGE 
 ;
 
-VARIABLE_MESSAGE : OBJECT_ACCESS                      
-                { 
-                  // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
-                  //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
-                  //   YYABORT;
-                  // }
-                  // $$=strdup($1);
-                }
+VARIABLE_MESSAGE : OBJECT_ACCESS  {$$=$1.object_path;}                    
 ;
 
 // ------------------------------ ASSIGN BLOCK -------------------------------------------------------------------------------------
 
-ASSIGN: OBJECT_ACCESS opASSIGN EXPRESSION_ITEM  
+ASSIGN: OBJECT_ACCESS opASSIGN GLOBAL_EXPRESSION 
                   { 
-                    // if (!idf_existe($1,current_class_level,"Variable") && !idf_existe($1,current_class_level,"Parametre")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
-                    //   YYABORT;
-                    // }
-                    // diviserChaine($3,partie1_1,partie1_2);
-                    // strcpy(typeIDF,getType($1,current_class_level,"Variable"));
-                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
-                    //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
-                    //       printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // remplir_quad("=",partie1_2,"<vide>",$1);
-                    // miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
-                  }
-        | OBJECT_ACCESS dimo INDEX dimf opASSIGN EXPRESSION
-                  { 
-                    // diviserChaine($6,partie1_1,partie1_2);
-                    // if (!idf_existe($1,current_class_level,"Vecteur") && !idf_existe($1,current_class_level,"Parametre")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
-                    //   YYABORT;
-                    // }
-                    // strcpy(typeIDF,getType($1,current_class_level,"Vecteur"));
-                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
-                    //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);
-                    // remplir_quad("=",partie1_2,"<vide>",tab);
-                    // miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
-                    // strcpy(tab," ");
-                  }   
-           | OBJECT_ACCESS dimo INDEX vg INDEX dimf opASSIGN EXPRESSION
-                  { 
-                    // diviserChaine($8,partie1_1,partie1_2);
-                    // if (!idf_existe($1,current_class_level,"Matrice") && !idf_existe($1,current_class_level,"Parametre")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Undeclared variable '%s'.\n",file_name,nb_line,nb_character,$1);
-                    //   YYABORT;
-                    // }
-                    // strcpy(typeIDF,getType($1,current_class_level,"Matrice"));
-                    // if (strcmp(typeIDF,partie1_1)!=0 && strcmp(typeIDF,"-")!=0 && strcmp(partie1_1,"-")!=0) {
-                    //   if(strcmp(typeIDF,"REAL")!=0 || strcmp(partie1_1,"INTEGER")!=0 ){
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // if(strcmp(typeIDF,"CHARACTER")==0 && strcmp(partie1_1,"CHARACTER")==0 ){
-                    //   if (!verif_char($1,current_class_level,"Variable",partie1_2)) {
-                    //     printf("\nFile '%s', line %d, character %d: semantic error : String too long'.\n",file_name,nb_line,nb_character);
-                    //     YYABORT;
-                    //   }
-                    // }
-                    // strcat(tab,$1);strcat(tab,$2);strcat(tab,$3);strcat(tab,$4);strcat(tab,$5);strcat(tab,$6);
-                    // remplir_quad("=",partie1_2,"<vide>",tab);
-                    // miseajour($1,"Variable","-1",partie1_2,"-1","-1","-1","-1","SEMANTIQUE");
-                    // strcpy(tab," ");
+                    char* base_name = get_element($1.object_path, false);
+
+                    char *dst_base = getBaseType($1.attribute_type);
+                    char *src_base = getBaseType($3.type);
+                    int dimension_dest = atoi(getArrayDimension($1.attribute_type));
+                    int dimension_src = atoi(getArrayDimension($3.type));
+                    if (!(strcmp(dst_base, "char") == 0 && strcmp(src_base, "char") == 0) && dimension_dest != dimension_src) {
+                        printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.object_path,$1.attribute_type,$3.type);
+                        YYABORT;
+                    }
+                    if (dimension_dest > 0) {
+                        int dst_sizes[100], src_sizes[100];
+                        int count = getArraySizes($1.attribute_type, dst_sizes);
+                        getArraySizes($3.type, src_sizes);
+                        int i;
+                        for (i = 0; i < count; ++i) {
+                            if (dst_sizes[i] != -1 && src_sizes[i] != -1 && src_sizes[i] > dst_sizes[i]) {
+                                printf("\nFile '%s', line %d, character %d: semantic error : Array too large '%s'.\n",file_name, nb_line, nb_character, $3.type);
+                                YYABORT;
+                            }
+                        }
+                    }
+                    if (strcmp(dst_base, src_base) != 0) {
+                        if (isNumericType(dst_base) && isNumericType(src_base)) {
+                            if (dimension_dest == 0) {
+                                double temp = atof($3.value);
+                                char   buf[64];
+                                if      (strcmp(dst_base, "int")    == 0) sprintf(buf, "%d",   (int)temp);
+                                else if (strcmp(dst_base, "float")  == 0) sprintf(buf, "%f",   (float)temp);
+                                else if (strcmp(dst_base, "double") == 0) sprintf(buf, "%lf",  temp);
+                                else    strcpy(buf, $3.value);
+                                free($3.value);
+                                $3.value = strdup(buf);
+                            }
+                        }
+                        else {
+                            printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.object_path,$1.attribute_type,$3.type);
+                            YYABORT;
+                        }
+                    }
+
+                    remplir_quad("=", $3.value, "<vide>", $1.object_path);
+
+                    char* base_nature = get_element($1.nature_path, false);
+                    if (strcmp(base_nature,"Variable")==0) update(base_name,base_nature,"-1",$3.value,"-1","-1","-1",current_scope);
+
+                    free(dst_base);
+                    free(src_base);
+                    free(base_name);  
                   }
 ;
 
 // ------------------------------ EXPRESSION BLOCK -----------------------------------------------------------------------------------
 
-EXPRESSION: EXPRESSION_ITEM {$$=$1;}
-          | ARRAY_INSTANCE {$$=$1;}
-          | OBJECT_CREATION {$$.type=strdup($1);}
+GLOBAL_EXPRESSION: EXPRESSION {$$=$1;}
+                 | ARRAY_INSTANCE 
+                     {
+                       $$.type = strdup($1.type);
+                       sprintf(temp,"T%d",tmp);
+                       $$.value=strdup(temp);
+                       tmp++;
+                     }
+                 | OBJECT_CREATION 
+                     {
+                       $$.type=strdup($1);
+                       sprintf(temp,"T%d",tmp);
+                       $$.value=strdup(temp);
+                       tmp++;
+                     }
 ;
 
 // ------------------------------ ARRAY BLOCK ---------------------------------------------------------------------------------------
 
 ARRAY_INSTANCE: acco SUBARRAY_LIST accf
                   {
-                    $$.type = strcat($2.type, "[]");
-                    $$.value = malloc(strlen($2.value) + 3);
-                    sprintf($$.value, "{%s}", $2.value);
+                    int n = $2.count;
+                    $$.type = malloc(strlen($2.type) + 8);
+                    sprintf($$ .type, "%s[%d]", $2.type, n);
+                    $$.count = n;
                   }
 ;
 
@@ -793,342 +940,402 @@ SUBARRAY_LIST: SUBARRAY_ITEM {$$=$1;}
              | SUBARRAY_LIST vg SUBARRAY_ITEM
                   {
                     if (strcmp($1.type, $3.type) != 0) {
-                        printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                        printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.type,$3.type);
                         YYABORT;
-                    }
-
-                    char *new_value = malloc(strlen($1.value) + strlen($3.value) + 3);
-                    sprintf(new_value, "%s, %s", $1.value, $3.value);
-                    
+                    }                    
                     $$.type = strdup($1.type);
-                    $$.value = strdup(new_value);
+                    $$.count = $1.count + 1;
                   }
 ;
 
-SUBARRAY_ITEM: EXPRESSION_ITEM  {$$=$1;}
-             | ARRAY_INSTANCE {$$=$1;}
+SUBARRAY_ITEM: EXPRESSION  
+                  {
+                    $$.type = strdup($1.type);
+                    $$.count = 1; 
+                  }
+             | ARRAY_INSTANCE 
+                  {
+                    $$.type  = strdup($1.type);
+                    $$.count = 1;
+                  }
 ;
 
 // ------------------------------ EXPRESSION ITEM BLOCK ----------------------------------------------------------------------------
 
-EXPRESSION_ITEM: EXPRESSION_ITEM opADD EXPRESSION_ITEM
-                  { 
-                    if (strcmp($1.type,"char") == 0 || strcmp($1.type,"boolean") == 0 || strcmp($3.type,"char") == 0 || strcmp($3.type,"boolean") == 0) {
-                      printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                      YYABORT;
-                    }
-                    char value[32];
-                    if (strcmp($1.type,"double") == 0  ||  strcmp($3.type,"double") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%lf", $1);
-                     $$.type=strdup("double");
-                      $$.value=strdup(value);
-                    }
-                    else if(strcmp($1.type,"float") == 0 || strcmp($3.type,"float") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%f", $1);
-                     $$.type=strdup("float");
-                      $$.value=strdup(value);
-                    }
-                    else{
-                      sprintf(value, "%d", $1);
-                     $$.type=strdup("int");
-                      $$.value=strdup(value);
-                    }
+EXPRESSION: LOGICAL_OR {$$=$1;}
+;
 
-                    // sprintf(temp,"T%d",tmp);
-                    // remplir_quad("+",$1.value,$3.value,temp);
-                    // tmp++;
-                  }  
-          | EXPRESSION_ITEM opMINUS EXPRESSION_ITEM
-                  { 
-                    if (strcmp($1.type,"char") == 0 || strcmp($1.type,"boolean") == 0 || strcmp($3.type,"char") == 0 || strcmp($3.type,"boolean") == 0) {
-                      printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                      YYABORT;
-                    }
-                    char value[32];
-                    if (strcmp($1.type,"double") == 0  ||  strcmp($3.type,"double") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%lf", $1);
-                     $$.type=strdup("double");
-                      $$.value=strdup(value);
-                    }
-                    else if(strcmp($1.type,"float") == 0 || strcmp($3.type,"float") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%f", $1);
-                     $$.type=strdup("float");
-                      $$.value=strdup(value);
-                    }
-                    else{
-                      sprintf(value, "%d", $1);
-                     $$.type=strdup("int");
-                      $$.value=strdup(value);
-                    }
+LOGICAL_OR: LOGICAL_AND {$$=$1;}
+          | LOGICAL_OR opOR LOGICAL_AND
+                  {
+                    // int false_label = qc++;
+                    // int exit_label = qc++;
+                      
+                    // remplir_quad("BNZ",false_label, $1.value, "<vide>");
+                    // remplir_quad("BNZ",false_label, $3.value,"<vide>");
 
-                    // sprintf(temp,"T%d",tmp);
-                    // remplir_quad("-",$1.value,$3.value,temp);
-                    // tmp++;
-                  }  
-          | EXPRESSION_ITEM opMUL EXPRESSION_ITEM
+                    // sprintf(temp,"T%d",tmp++);
+                    // remplir_quad("=", "0", "<vide>", temp);
+                    // remplir_quad("BR", exit_label, "<vide>","<vide>" );
+                    
+                    // sprintf(temp,"T%d",tmp++);
+                    // remplir_quad("=", "1", "", temp);
+                    
+                    $$.type = strdup("boolean");
+                    
+                    // $$.value = temp;
+                  }
+;
+
+LOGICAL_AND: EQUALITY {$$=$1;}
+           | LOGICAL_AND opAND EQUALITY
+                  {
+                    // int true_label = qc++;
+                    // int exit_label = qc++;
+                    
+                    // remplir_quad("BZ",true_label, $1.value, "<vide>");
+                    // remplir_quad("BZ",true_label, $3.value,"<vide>");
+
+                    // sprintf(temp,"T%d",tmp++);
+                    // remplir_quad("=", "1", "<vide>", temp);
+                    // remplir_quad("BR", exit_label, "<vide>","<vide>");
+                    
+                    // sprintf(temp,"T%d",tmp++);
+                    // remplir_quad("=", "0", "", temp);
+                    
+                    $$.type = strdup("boolean");
+                  
+                    // $$.value = temp;
+                  }
+;
+
+EQUALITY: RELATIONAL {$$=$1;}
+        | EQUALITY opEQ RELATIONAL
+                  {
+                    $$.type=strdup("boolean");
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("BNE"," ",$1.value,$3.value);
+                    tmp++;
+                  }
+        | EQUALITY opNE RELATIONAL
+                  {
+                    $$.type=strdup("boolean");
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("BE"," ",$1.value,$3.value);
+                    tmp++;
+                  }
+;
+
+RELATIONAL: ADDITIVE {$$=$1;}
+          | RELATIONAL opLT ADDITIVE
+                  {
+                    $$.type=strdup("boolean");
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("BGE"," ",$1.value,$3.value);
+                    tmp++;
+                  }
+          | RELATIONAL opLE ADDITIVE
+                  {
+                    $$.type=strdup("boolean");
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("BG"," ",$1.value,$3.value);
+                    tmp++;
+                  }
+          | RELATIONAL opGT ADDITIVE
+                  {
+                    $$.type=strdup("boolean");
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("BLE"," ",$1.value,$3.value);
+                    tmp++;
+                  }
+          | RELATIONAL opGE ADDITIVE
+                  {
+                    $$.type=strdup("boolean");
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("BL"," ",$1.value,$3.value);
+                    tmp++;
+                  }
+;
+
+ADDITIVE: MULTIPLICATIVE {$$=$1;}
+        | ADDITIVE opADD MULTIPLICATIVE
                   { 
                     if (strcmp($1.type,"char") == 0 || strcmp($1.type,"boolean") == 0 || strcmp($3.type,"char") == 0 || strcmp($3.type,"boolean") == 0) {
-                      printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                      printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.type,$3.type);
                       YYABORT;
                     }
-                    char value[32];
                     if (strcmp($1.type,"double") == 0  ||  strcmp($3.type,"double") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%lf", $1);
                       $$.type=strdup("double");
-                      $$.value=strdup(value);
                     }
                     else if(strcmp($1.type,"float") == 0 || strcmp($3.type,"float") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%f", $1);
                       $$.type=strdup("float");
-                      $$.value=strdup(value);
                     }
                     else{
-                      sprintf(value, "%d", $1);
                       $$.type=strdup("int");
-                      $$.value=strdup(value);
                     }
 
-                    // sprintf(temp,"T%d",tmp);
-                    // remplir_quad("*",$1.value,$3.value,temp);
-                    // tmp++;
-                  }  
-          | EXPRESSION_ITEM opMOD EXPRESSION_ITEM
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("+",$1.value,$3.value,temp);
+                    tmp++;
+                  } 
+        | ADDITIVE opMINUS MULTIPLICATIVE
                   { 
                     if (strcmp($1.type,"char") == 0 || strcmp($1.type,"boolean") == 0 || strcmp($3.type,"char") == 0 || strcmp($3.type,"boolean") == 0) {
-                      printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                      printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.type,$3.type);
+                      YYABORT;
+                    }
+                    if (strcmp($1.type,"double") == 0  ||  strcmp($3.type,"double") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
+                      $$.type=strdup("double");
+                    }
+                    else if(strcmp($1.type,"float") == 0 || strcmp($3.type,"float") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
+                      $$.type=strdup("float");
+                    }
+                    else{
+                      $$.type=strdup("int");
+                    }
+
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("-",$1.value,$3.value,temp);
+                    tmp++;
+                  }  
+;
+
+MULTIPLICATIVE: UNARY {$$=$1;}
+             | MULTIPLICATIVE opMUL UNARY
+                  { 
+                    if (strcmp($1.type,"char") == 0 || strcmp($1.type,"boolean") == 0 || strcmp($3.type,"char") == 0 || strcmp($3.type,"boolean") == 0) {
+                      printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.type,$3.type);
+                      YYABORT;
+                    }
+                    if (strcmp($1.type,"double") == 0  ||  strcmp($3.type,"double") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
+                      $$.type=strdup("double");
+                    }
+                    else if(strcmp($1.type,"float") == 0 || strcmp($3.type,"float") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
+                      $$.type=strdup("float");
+                    }
+                    else{
+                      $$.type=strdup("int");
+                    }
+
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("*",$1.value,$3.value,temp);
+                    tmp++;
+                  } 
+             | MULTIPLICATIVE opMOD UNARY
+                  { 
+                    if (strcmp($1.type,"char") == 0 || strcmp($1.type,"boolean") == 0 || strcmp($3.type,"char") == 0 || strcmp($3.type,"boolean") == 0) {
+                      printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.type,$3.type);
                       YYABORT;
                     }
                     if (strcmp($3.value,"0") == 0) { 
                       printf("\nFile '%s', line %d, character %d: semantic error : Division by zero.\n",file_name,nb_line,nb_character);
                       YYABORT;
                     }
-                    char value[32];
                     if (strcmp($1.type,"double") == 0  ||  strcmp($3.type,"double") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%lf", $1);
                      $$.type=strdup("double");
-                      $$.value=strdup(value);
                     }
                     else if(strcmp($1.type,"float") == 0 || strcmp($3.type,"float") == 0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0){
-                      sprintf(value, "%f", $1);
                      $$.type=strdup("float");
-                      $$.value=strdup(value);
                     }
                     else{
-                      sprintf(value, "%d", $1);
                      $$.type=strdup("int");
-                      $$.value=strdup(value);
                     }
 
-                    // sprintf(temp,"T%d",tmp);
-                    // remplir_quad("%",$1.value,$3.value,temp);
-                    // tmp++;
-                  }  
-          | EXPRESSION_ITEM opDIV EXPRESSION_ITEM 
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("%",$1.value,$3.value,temp);
+                    tmp++;
+                  } 
+             | MULTIPLICATIVE opDIV UNARY
                   {  
                     if (strcmp($3.value,"0") == 0) { 
                       printf("\nFile '%s', line %d, character %d: semantic error : Division by zero.\n",file_name,nb_line,nb_character);
                       YYABORT;
                     }
                     if (strcmp($1.type,"char") == 0 || strcmp($1.type,"boolean") == 0 || strcmp($3.type,"char") == 0 || strcmp($3.type,"boolean") == 0) {
-                      printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
+                      printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.type,$3.type);
                       YYABORT;
                     }
-                    char value[32];
-                    sprintf(value, "%lf", $1);
+
                     $$.type=strdup("double");
-                    $$.value=strdup(value);
 
-                    // sprintf(temp,"T%d",tmp);
-                    // remplir_quad("/",$1.value,$3.value,temp);
-                    // tmp++;
-                  } 
-          | OBJECT_ACCESS MULTIDIMENSION_ACCESS
-                  { 
-                    char* base_name = get_element($1, false);
+                    sprintf(temp,"T%d",tmp);
+                    $$.value=strdup(temp);
+                    remplir_quad("/",$1.value,$3.value,temp);
+                    tmp++;
+                  }
+;
 
-                    if (check_idf_recursive_scope(base_name, current_scope, "Variable")) {
-                        $$.type = strdup(getType(base_name, current_scope, "Variable"));
-                    } else {
-                        $$.type = strdup(getType(base_name, current_scope, "Attribute"));
-                    }
+UNARY: opNOT UNARY
+          {
+            $$.type = strdup("boolean");
+            // sprintf(temp,"T%d",tmp++);
+            // $$.value = temp;
+            // remplir_quad("BZ", $2.value, "", $$.value);
+          }
+     /* | opMINUS UNARY */
+     | PRIMARY {$$=$1;}
+;
 
-                    $$.value= strdup("base_name");
-
-                    free(base_name);
-
-                    // if (!verif_index($1,current_class_level,"Vecteur",$3,"Ligne")) {
-                    //   printf("\nFile '%s', line %d, character %d: semantic error : Index out of range '%s(%s)'.\n",file_name,nb_line,nb_character,$1,$3);
-                    //   YYABORT;
-                    // }               
-                  }             
-          | DOUBLE    
-              {
-                char value[32];
-                sprintf(value, "%lf", $1);
-                $$.type=strdup("double");
-                $$.value=strdup(value);
-              }                
-          | FLOAT    
-              {
-                char value[32];
-                sprintf(value, "%f", $1);
-                $$.type=strdup("float");
-                $$.value=strdup(value);
-              }                
-          | INTEGER  
-              {
-                char value[32];
-                sprintf(value, "%d", $1);
-                $$.type=strdup("int");
-                $$.value=strdup(value);
-              }                  
-          | BOOL  
-              {
-                $$.type=strdup("boolean");
-                $$.value=strdup($1);
-              }                    
-          | STRING  
-              {
-                $$.type=strdup("char");
-                $$.value=strdup($1);
-              }                 
-          | po EXPRESSION_ITEM pf  
-              {
-                $$=$2;
-              }
+PRIMARY: OBJECT_ACCESS
+            { 
+              $$.type  = strdup($1.attribute_type);
+              if ($1.is_method) {
+                  sprintf(temp,"T%d",tmp);
+                  $$.value = strdup(temp);  
+                  tmp++;
+              } else {
+                $$.value = strdup($1.object_path);
+              }     
+            }
+       | DOUBLE
+            {
+              char value[32];
+              sprintf(value, "%lf", $1);
+              $$.type=strdup("double");
+              $$.value=strdup(value);
+            }  
+       | FLOAT
+            {
+              char value[32];
+              sprintf(value, "%f", $1);
+              $$.type=strdup("float");
+              $$.value=strdup(value);
+            }
+       | INTEGER
+            {
+              char value[32];
+              sprintf(value, "%d", $1);
+              $$.type=strdup("int");
+              $$.value=strdup(value);
+            }
+       | STRING
+            {
+              sprintf(string_size,"%d",strlen($1)-2);
+	            sprintf(string_message,"char[%d]",strlen($1)-2);
+	            search($1,"String",string_message,"-",string_size,"1","-","-",0);
+              $$.type=strdup(string_message);
+              $$.value=strdup($1);
+            } 
+       | BOOL
+            {
+              $$.type=strdup("boolean");
+              $$.value=strdup($1);
+            } 
+       | po EXPRESSION pf {$$=$2;}
 ;
 
 // --------------------------------- INCREMENT AND DECREMENT BLOCK ---------------------------------------------------------------------------
 
 INCREMENT: POSTFIX_INCREMENT
-         /* | PREFIX_INCREMENT */
          | INCREMENT_ASSIGN
 ;
 
 POSTFIX_INCREMENT: OBJECT_ACCESS opADD opADD
+                      {
+                        sprintf(temp,"T%d",tmp);
+                        remplir_quad("+",$1.object_path,"1",temp);
+                        tmp++;
+                        remplir_quad("=",temp,"<vide>",$1.object_path);
+                      }
                  | OBJECT_ACCESS opMINUS opMINUS
+                      {
+                        sprintf(temp,"T%d",tmp);
+                        remplir_quad("-",$1.object_path,"1",temp);
+                        tmp++;
+                        remplir_quad("=",temp,"<vide>",$1.object_path);
+                      }
 ;
 
-/* PREFIX_INCREMENT: opADD opADD OBJECT_ACCESS
-                | opMINUS opMINUS OBJECT_ACCESS
+INCREMENT_ASSIGN : OBJECT_ACCESS opADD opASSIGN EXPRESSION
+                      {
+                        if (strcmp($1.attribute_type,"char") == 0 || strcmp($1.attribute_type,"boolean") == 0 || strcmp($4.type,"char") == 0 || strcmp($4.type,"boolean") == 0) {
+                          printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.attribute_type,$4.type);
+                          YYABORT;
+                        }
+                        sprintf(temp,"T%d",tmp);
+                        remplir_quad("+",$1.object_path,$4.value,temp);
+                        tmp++;
+                        remplir_quad("=",temp,"<vide>",$1.object_path);
+                      }
+                 | OBJECT_ACCESS opMINUS opASSIGN EXPRESSION
+                      {
+                        if (strcmp($1.attribute_type,"char") == 0 || strcmp($1.attribute_type,"boolean") == 0 || strcmp($4.type,"char") == 0 || strcmp($4.type,"boolean") == 0) {
+                          printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.attribute_type,$4.type);
+                          YYABORT;
+                        }
+                        sprintf(temp,"T%d",tmp);
+                        remplir_quad("-",$1.object_path,$4.value,temp);
+                        tmp++;
+                        remplir_quad("=",temp,"<vide>",$1.object_path);
+                      }
+                 | OBJECT_ACCESS opMUL opASSIGN EXPRESSION
+                      {
+                        if (strcmp($1.attribute_type,"char") == 0 || strcmp($1.attribute_type,"boolean") == 0 || strcmp($4.type,"char") == 0 || strcmp($4.type,"boolean") == 0) {
+                          printf("\nFile '%s', semantic error, line %d, column %d : Type incompatibility '%s' vs '%s'.\n",file_name,nb_line,nb_character,$1.attribute_type,$4.type);
+                          YYABORT;
+                        }
+                        sprintf(temp,"T%d",tmp);
+                        remplir_quad("*",$1.object_path,$4.value,temp);
+                        tmp++;
+                        remplir_quad("=",temp,"<vide>",$1.object_path);
+                      }
+;
+
+/* CONDITION_PRIMARY:EXPRESSION_ITEM 
+                      {
+                        if (strcmp($1.type, "boolean") != 0) {
+                            printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",
+                       file_name, nb_line, nb_character, $1.value);
+                            YYABORT;
+                        }
+                        $$ = strdup($1.value);
+                      } 
 ; */
 
-INCREMENT_ASSIGN : OBJECT_ACCESS opADD opASSIGN EXPRESSION_ITEM
-                 | OBJECT_ACCESS opMINUS opASSIGN EXPRESSION_ITEM
-                 | OBJECT_ACCESS opMUL opASSIGN EXPRESSION_ITEM
-;
-
-// --------------------------------- CONDITION BLOCK ---------------------------------------------------------------------------
-
-CONDITION: po EXPRESSION_ITEM COMPARISON_OPERATOR EXPRESSION_ITEM pf
-              { 
-                // diviserChaine($2,partie1_1,partie1_2);
-                // diviserChaine($6,partie2_1,partie2_2);
-                // sprintf(temp,"T%d",tmp);
-                // if (strcmp(partie2_1,partie1_1)!=0 && strcmp(partie1_1,"-")!=0 && strcmp(partie2_1,"-")!=0) {
-                //   if(!((strcmp(partie1_1,"REAL")==0 && strcmp(partie2_1,"INTEGER")==0) || (strcmp(partie2_1,"REAL")==0 && strcmp(partie1_1,"INTEGER")==0))){
-                //     printf("\nFile '%s', line %d, character %d: semantic error : Type incompatibility.\n",file_name,nb_line,nb_character);
-                //     YYABORT;
-                //   }
-                // }
-                // $$=strdup(temp);
-                // remplir_quad($4,partie1_2,partie2_2,temp);
-                // tmp++;
-              }
-         | po CONDITION LOGICAL_OPERATOR CONDITION pf
-              {
-                // sprintf(temp,"T%d",tmp);
-                // $$=strdup(temp);
-                // remplir_quad($4,$2,$6,temp);
-                // tmp++;
-              }
-         | po CONDITION pf
-              {
-                $$=strdup($2);
-              }
-         | opNOT CONDITION 
-              {
-                // sprintf(temp,"T%d",tmp);
-                // $$=strdup(temp);
-                // remplir_quad("NOT",$2,"<vide>",temp);
-                // tmp++;
-              }
-;               
-
-LOGICAL_OPERATOR: opAND {$$=strdup($1);}
-                | opOR  {$$=strdup($1);}
-;
-
-COMPARISON_OPERATOR: opGT {$$=strdup($1);}
-                   | opGE {$$=strdup($1);} 
-                   | opEQ {$$=strdup($1);}
-                   | opLE {$$=strdup($1);}
-                   | opLT {$$=strdup($1);}
-                   | opNE {$$=strdup($1);}
-;
 
 // --------------------------------- IF/ELSE BLOCK ---------------------------------------------------------------------------
 
-R2_1_CONTROLE: kwIF CONDITION 
+IF_PREFIX: kwIF po EXPRESSION pf 
               {
-                // deb_else=qc;
-                // fin_if=qc;
-                // remplir_quad("BNZ"," ",$2,"<vide>");
+                if_stack_top++;
+                deb_else = qc-1;
+                fin_if = qc-1;
+                deb_else_stack[if_stack_top] = deb_else;
+                fin_if_stack[if_stack_top] = fin_if;
+
               }
 ;
 
-R1_2_CONTROLE: R2_1_CONTROLE acco INSTRUCTION_LIST accf
+IF_BLOCK: IF_PREFIX acco INSTRUCTION_LIST accf
               {
-                // fin_if=qc;
-                // remplir_quad("BR"," ","<vide>","<vide>");
-                // sprintf(i,"%d",qc); 
-                // mise_jr_quad(deb_else,2,i);
+                sprintf(i,"%d",qc);
+                mise_jr_quad(fin_if,2,i);
+                deb_else = deb_else_stack[if_stack_top];
+                fin_if = fin_if_stack[if_stack_top];
+                if_stack_top--;
               }
 ;
 
-R3_1_CONTROLE: kwIF EXPRESSION_ITEM 
-              {
-                // diviserChaine($2,partie1_1,partie1_2);
-                // if (strcmp(partie1_1,"LOGICAL")!=0 && strcmp(partie1_1,"-")!=0){
-                //   printf("\nFile '%s', line %d, character %d: semantic error : Unexpected expression type.\n",file_name,nb_line,nb_character);
-                //   YYABORT;
-                // }
-                // deb_else=qc;
-                // fin_if=qc;
-                // remplir_quad("BNZ"," ",partie1_2,"<vide>");
-                
-              }
-;
+IF_ELSE_BLOCK: IF_BLOCK kwELSE acco INSTRUCTION_LIST accf 
+                  {
+                    sprintf(i,"%d",qc);
+                    mise_jr_quad(fin_if,2,i);
 
-R4_2_CONTROLE: R3_1_CONTROLE acco INSTRUCTION_LIST accf
-              {
-                // fin_if=qc;
-                // remplir_quad("BR"," ","<vide>","<vide>");
-                // sprintf(i,"%d",qc); 
-                // mise_jr_quad(deb_else,2,i);
-              }
-;
-
-IF_ELSE_BLOCK: R1_2_CONTROLE kwELSE acco INSTRUCTION_LIST accf 
-                  {
-                    // sprintf(i,"%d",qc);
-                    // mise_jr_quad(fin_if,2,i);
+                    deb_else = deb_else_stack[if_stack_top];
+                    fin_if = fin_if_stack[if_stack_top];
+                    if_stack_top--;
                   }
-            | R2_1_CONTROLE acco INSTRUCTION_LIST accf 
-                  {
-                    // sprintf(i,"%d",qc);
-                    // mise_jr_quad(fin_if,2,i);
-                  }
-            | R3_1_CONTROLE acco INSTRUCTION_LIST accf 
-                  {
-                    // sprintf(i,"%d",qc);
-                    // mise_jr_quad(fin_if,2,i);
-                  }
-            | R4_2_CONTROLE kwELSE acco INSTRUCTION_LIST accf 
-                  {
-                    // sprintf(i,"%d",qc);
-                    // mise_jr_quad(fin_if,2,i);
-                  }
+              | IF_BLOCK  
 ;
 
 // --------------------------------- LOOP BLOCK -----------------------------------------------------------------------------------
@@ -1146,77 +1353,108 @@ FOR_LOOP: kwFOR
               for_scope_parser_counter++;
               sprintf(new_scope,"for_loop_%d",for_scope_parser_counter);
               enter_scope(new_scope);
+
+              for_stack_top++;
+              for_deb_stack[for_stack_top] = deb_for;
+              for_fin_stack[for_stack_top] = fin_for;
+
+              deb_for = qc + 1;
+              fin_for = qc + 1;
             }
           FOR_LOOP_SIGNATURE acco INSTRUCTION_LIST accf
             {
-              // remplir_quad("BR"," ","<vide>","<vide>");
-              // sprintf(i,"%d",qc); 
-              // mise_jr_quad($2,2,i);
+              sprintf(i,"%d",deb_for);
+              remplir_quad("BR",i,"<vide>","<vide>");
+              sprintf(i,"%d",qc);
+              mise_jr_quad(fin_for,2,i);
+
+              deb_for = for_deb_stack[for_stack_top];
+              fin_for = for_fin_stack[for_stack_top];
+              for_stack_top--;
+
               exit_scope();
-              for_scope_parser_counter=0;
             }
 ;
 
-COUNTER_INIT: NUMERIC_TYPE IDF OPTIONAL_ASSIGN
-                  {
-                      search($2,"Variable",$1, "-1", "-", "0", "-",current_scope, 0);
-                  }
-            | OBJECT_ACCESS OPTIONAL_ASSIGN
-            |
+COUNTER_INIT: NUMERIC_TYPE IDF 
+                {
+                  strcpy(current_IDF,$2); 
+                  search($2,"Variable",$1, "-1", "-", "0", "-",current_scope, 0);
+                }
+              OPTIONAL_ASSIGN
+            | OBJECT_ACCESS 
+                {
+                  strcpy(current_IDF,get_element($1.object_path,false));
+                }
+              OPTIONAL_ASSIGN
+            | /* empty */
 
-FOR_LOOP_SIGNATURE: po NUMERIC_TYPE IDF dp OBJECT_ACCESS pf 
-                        {
-                          search($3,"Variable",$2, "-1", "-", "0", "-",current_scope, 0);
-                        }
-                  | po OBJECT_ACCESS dp OBJECT_ACCESS pf
-                  | po COUNTER_INIT pvg CONDITION pvg INCREMENT pf
+FOR_LOOP_SIGNATURE: FOR_LOOP_LIST
+                  | FOR_LOOP_CONDITIONAL
+;
+
+FOR_LOOP_LIST: po NUMERIC_TYPE IDF dp OBJECT_ACCESS pf 
+                  {
+                    search($3,"Variable",$2, "NULL", "-", "0", "-",current_scope, 0);
+                  }
+              | po OBJECT_ACCESS dp OBJECT_ACCESS pf
+;
+
+FOR_LOOP_CONDITIONAL: po COUNTER_INIT pvg EXPRESSION pvg INCREMENT pf
 ;
 
 // --------------------------------- WHILE LOOP BLOCK -----------------------------------------------------------------------------------
-R1_1_WHILE: kwWHILE CONDITION 
+WHILE_PREFIX: kwWHILE po EXPRESSION pf 
                 {
-                  // fin_dowhile=qc;
-                  // deb_dowhile=qc;
-                  // remplir_quad("BNZ"," ",$2,"<vide>");
+                  while_stack_top++;
+                  while_deb_stack[while_stack_top] = deb_while;
+                  while_fin_stack[while_stack_top] = fin_while;
+
+                  deb_while = qc - 1;
+                  fin_while = qc - 1;
                 }
 ;
 
-R2_1_WHILE: kwWHILE EXPRESSION_ITEM
+WHILE_LOOP: WHILE_PREFIX acco INSTRUCTION_LIST accf 
                 {
-                  // diviserChaine($2,partie1_1,partie1_2);
-                  // fin_dowhile=qc;
-                  // remplir_quad("BNZ"," ",partie1_1,"<vide>");
-                }
-;
+                  sprintf(i,"%d",deb_while);
+                  remplir_quad("BR",i,"<vide>","<vide>");
+                  sprintf(i,"%d",qc);
+                  mise_jr_quad(fin_while,2,i);
 
-WHILE_LOOP: R1_1_WHILE acco INSTRUCTION_LIST accf 
-                {
-                  // sprintf(i,"%d",deb_dowhile);
-                  // remplir_quad("BR",i,"<vide>","<vide>");
-                  // sprintf(i,"%d",qc);
-                  // mise_jr_quad(fin_dowhile,2,i);
-                }
-          | R2_1_WHILE acco INSTRUCTION_LIST accf
-                {
-                  // sprintf(i,"%d",deb_dowhile);
-                  // remplir_quad("BR",i,"<vide>","<vide>");
-                  // sprintf(i,"%d",qc);
-                  // mise_jr_quad(fin_dowhile,2,i);
+                  deb_while = while_deb_stack[while_stack_top];
+                  fin_while = while_fin_stack[while_stack_top];
+                  while_stack_top--;
                 }
 ;
 // --------------------------------- DO WHILE LOOP BLOCK -----------------------------------------------------------------------------------
 
-DOWHILE_LOOP: kwDO acco INSTRUCTION_LIST accf R1_1_WHILE 
-            | kwDO acco INSTRUCTION_LIST accf R2_1_WHILE
+DOWHILE_PREFIX: kwDO 
+                  {
+                    do_stack_top++;
+                    do_deb_stack[do_stack_top] = deb_dowhile;
+
+                    deb_dowhile = qc;
+                  }
+;
+
+DOWHILE_LOOP: DOWHILE_PREFIX acco INSTRUCTION_LIST accf kwWHILE po EXPRESSION pf
+                  {
+                    sprintf(i,"%d",deb_dowhile);
+                    mise_jr_quad(qc-1,2,i);
+
+                    deb_dowhile = do_deb_stack[do_stack_top];
+                    do_stack_top--;
+                  }
 ; 
 
 // --------------------------------- SWITCH CASE BLOCK -----------------------------------------------------------------------------------
 
-SWITCH_CASE_BLOCK: kwSWITCH po IDF pf acco CASE_LIST OPTIONAL_DEFAULT accf
+SWITCH_CASE_BLOCK: kwSWITCH po OBJECT_ACCESS pf acco CASE_LIST OPTIONAL_DEFAULT accf
 ;
 
-CASE_LIST: kwCASE EXPRESSION_ITEM dp INSTRUCTION_LIST kwBREAK pvg CASE_LIST
-         | kwCASE EXPRESSION_ITEM dp INSTRUCTION_LIST kwBREAK pvg
+CASE_LIST: kwCASE EXPRESSION dp INSTRUCTION_LIST kwBREAK pvg CASE_LIST
+         | kwCASE EXPRESSION dp INSTRUCTION_LIST kwBREAK pvg
 ;
 
 OPTIONAL_DEFAULT: kwDEFAULT dp INSTRUCTION_LIST
@@ -1249,7 +1487,31 @@ OPTIONAL_FINALLY: kwFINALLY acco INSTRUCTION_LIST accf
 
 // --------------------------------- RETURN BLOCK -----------------------------------------------------------------------------------
 
-RETURN: kwRETURN EXPRESSION_ITEM 
+RETURN: kwRETURN EXPRESSION 
+          {
+            if (strcmp(method_return_type, "void") == 0) {
+                printf("\nFile '%s', semantic error, line %d, column %d: void method cannot return a value.\n",
+                       file_name, nb_line, nb_character);
+                YYABORT;
+            }
+
+            char *dst = getBaseType(current_type);
+            char *src = getBaseType($2.type);
+            if (strcmp(dst, src) != 0) {
+                printf("\nFile '%s', semantic error, line %d, column %d: return type '%s' does not match method return type '%s'.\n",
+                       file_name, nb_line, nb_character, $2.type, current_type);
+                YYABORT;
+            }
+            free(dst);
+            free(src);
+
+            method_return_qc[method_count] = qc;
+            remplir_quad("BR", " ", "<vide>", "<vide>");
+            method_count++;
+            remplir_quad("BR", " ", "<vide>", "<vide>");
+
+            has_returned=true;
+          }
 ;
 
 %%
@@ -1265,6 +1527,10 @@ int main(int argc,char *argv[]){
   yyparse();
   afficher();
   affiche_quad();
+  int i;
+  for(i=0;i<method_count;i++){
+    printf("\n%s %d %d\n",method_names[i],method_entry_qc[i],method_return_qc[i]);
+  }
   liberer_table();
   return 0;
 }
