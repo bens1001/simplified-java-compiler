@@ -814,7 +814,7 @@ VARIABLE_LIST: vg IDF OPTIONAL_ASSIGN VARIABLE_LIST
                     search($2, "Variable", current_type, "NULL", getArraySize(current_type), dimension_value,"-" ,current_scope, 0);
                     strcpy(current_IDF,$2);
                   }
-            |
+            | /* empty */
 ;
 
 // ------------------------------ PRINT BLOCK -------------------------------------------------------------------------------------
@@ -825,6 +825,7 @@ OUTPUT: PRINT po STRING_MESSAGE pf
 
 PRINT: kwPRINTLN
      | kwPRINT
+;
 
 STRING_MESSAGE: STRING MESSAGE_CONCATENATION
                   {
@@ -840,7 +841,7 @@ STRING_MESSAGE: STRING MESSAGE_CONCATENATION
                   }
               | VARIABLE_MESSAGE opADD STRING_MESSAGE
                   {}
-              | {}
+              | /* empty */ {}
 ;
 
 MESSAGE_CONCATENATION: opADD VARIABLE_MESSAGE opADD STRING_MESSAGE
@@ -1291,22 +1292,14 @@ INCREMENT_ASSIGN : OBJECT_ACCESS opADD opASSIGN EXPRESSION
                       }
 ;
 
-/* CONDITION_PRIMARY:EXPRESSION_ITEM 
-                      {
-                        if (strcmp($1.type, "boolean") != 0) {
-                            printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",
-                       file_name, nb_line, nb_character, $1.value);
-                            YYABORT;
-                        }
-                        $$ = strdup($1.value);
-                      } 
-; */
-
-
 // --------------------------------- IF/ELSE BLOCK ---------------------------------------------------------------------------
 
 IF_PREFIX: kwIF po EXPRESSION pf 
               {
+                if (strcmp($3.type, "boolean") != 0) {
+                  printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",file_name, nb_line, nb_character, $3.value);
+                  YYABORT;
+                }
                 if_stack_top++;
                 deb_else = qc-1;
                 fin_if = qc-1;
@@ -1401,11 +1394,21 @@ FOR_LOOP_LIST: po NUMERIC_TYPE IDF dp OBJECT_ACCESS pf
 ;
 
 FOR_LOOP_CONDITIONAL: po COUNTER_INIT pvg EXPRESSION pvg INCREMENT pf
+                        {
+                          if (strcmp($4.type, "boolean") != 0) {
+                            printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",file_name, nb_line, nb_character, $4.value);
+                            YYABORT;
+                          }
+                        }
 ;
 
 // --------------------------------- WHILE LOOP BLOCK -----------------------------------------------------------------------------------
 WHILE_PREFIX: kwWHILE po EXPRESSION pf 
                 {
+                  if (strcmp($3.type, "boolean") != 0) {
+                    printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",file_name, nb_line, nb_character, $3.value);
+                    YYABORT;
+                  }
                   while_stack_top++;
                   while_deb_stack[while_stack_top] = deb_while;
                   while_fin_stack[while_stack_top] = fin_while;
@@ -1440,6 +1443,10 @@ DOWHILE_PREFIX: kwDO
 
 DOWHILE_LOOP: DOWHILE_PREFIX acco INSTRUCTION_LIST accf kwWHILE po EXPRESSION pf
                   {
+                    if (strcmp($7.type, "boolean") != 0) {
+                      printf("\nFile '%s', semantic error, line %d, column %d, entity '%s' is not a boolean type.\n",file_name, nb_line, nb_character, $7.value);
+                      YYABORT;
+                    }
                     sprintf(i,"%d",deb_dowhile);
                     mise_jr_quad(qc-1,2,i);
 
@@ -1495,11 +1502,11 @@ RETURN: kwRETURN EXPRESSION
                 YYABORT;
             }
 
-            char *dst = getBaseType(current_type);
+            char *dst = getBaseType(method_return_type);
             char *src = getBaseType($2.type);
             if (strcmp(dst, src) != 0) {
                 printf("\nFile '%s', semantic error, line %d, column %d: return type '%s' does not match method return type '%s'.\n",
-                       file_name, nb_line, nb_character, $2.type, current_type);
+                       file_name, nb_line, nb_character, $2.type, method_return_type);
                 YYABORT;
             }
             free(dst);
