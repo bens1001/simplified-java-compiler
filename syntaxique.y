@@ -1539,6 +1539,17 @@ int main(int argc,char *argv[]){
   for(i=0;i<method_count;i++){
     printf("\n%s %d %d\n",method_names[i],method_entry_qc[i],method_return_qc[i]);
   }
+  printf("\n=== COPY PROPAGATION ===\n");
+  copy_propagation();
+  printf("\n=== EXPRESSION PROPAGATION ===\n");
+  expression_propagation();
+  printf("\n=== REDUNDANT EXPR ELIMINATION ===\n");
+  eliminate_redundant_expressions();
+  printf("\n=== ALGEBRAIC SIMPLIFICATION ===\n");
+  algebraic_simplification();
+  printf("\n=== DEAD CODE ELIMINATION ===\n");
+  dead_code_elimination();
+  affiche_quad();
   liberer_table();
   return 0;
 }
