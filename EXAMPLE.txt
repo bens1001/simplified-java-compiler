@@ -2,12 +2,14 @@ import edu.example.ArrayTools;
 import edu.example.CharUtils;
 
 class Person {
-    int age;
+    // int age,x;
+    // int age;
+    int age = 2;
     char[1] gender;
     boolean isStudent;
     int[7][50][20][275] grades;
     
-    // Constructor with explicit this. assignments
+
     Person(int age, char[1] gender, boolean isStudent, int[7][50][20][275] grades) {
         this.age = age;
         this.gender = gender;
@@ -25,7 +27,7 @@ class Person {
                     }
                 System.out.println(this.grades[5][8][0][0]);
             }
-        }while(true)
+        }while(false)
         int i=1;
     }
 }
@@ -90,9 +92,9 @@ class Student {
 }
 
 class Attendance {
-    boolean[5][7] records; // 5 days, 7 periods
+    int[5][7] records; // 5 days, 7 periods
     
-    Attendance(boolean[5][7] records) {
+    Attendance(int[5][7] records) {
         this.records = records;
     }
     
@@ -123,7 +125,7 @@ class Main {
         char[6] courseCode = {'C','S','1','0','0','1'};
         Course cs101 = new Course(courseCode, 4);
 
-        int x=5;
+        int x;
         
         // 💡 Semantic Error Examples (Commented) 💡
         
@@ -157,7 +159,7 @@ class Main {
         // int x = p1.display(); // display() returns void
 
         boolean v = true;
-        if( v && true) {
+        if( true) {
             System.out.print("Present ");
             x++;
         } else {
@@ -165,7 +167,7 @@ class Main {
             x--;
         }
         try {
-            int result = 10 / 0; // Division par zéro
+            int result = 10 / 5; // Division par zéro
         } catch (ArithmeticException e) {
             System.out.println("An error occurred: " + e.getMessage());
         } finally {
