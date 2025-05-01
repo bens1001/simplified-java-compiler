@@ -52,273 +52,321 @@ void affiche_quad()
 	}
 }
 
-// 1. Propagation de copie (Copy Propagation) with logging
-void copy_propagation()
+// Helper function for logging changes
+void log_change(int idx, const char *action, const char *details)
 {
-	struct Entry
+	printf("Quad %3d: %-30s | %s\n", idx, action, details);
+}
+
+// 1. Copy Propagation
+bool copy_propagation()
+{
+	bool changed = false;
+	struct CopyEntry
 	{
-		char *dest;
-		char *src;
-	};
-	struct Entry *copies = NULL;
-	int count = 0;
+		char dest[100], src[100];
+		int valid;
+	} copies[100];
+	int copy_count = 0;
 	int i, j;
 
-	// First pass: Build copy map and replace uses
-	for (i = 0; i < qc; ++i)
+	for (i = 0; i < qc; i++)
 	{
 		qdr *q = &quad[i];
-		if (strcmp(q->operation, "=") == 0 && strcmp(q->opr2, "<vide>") == 0)
-		{
-			copies = (struct Entry *)realloc(copies, (count + 1) * sizeof(struct Entry));
-			copies[count].dest = strdup(q->tempo);
-			copies[count].src = strdup(q->opr1);
-			count++;
-		}
-		else
-		{
-			// Track changes for logging
-			char orig_opr1[100], orig_opr2[100];
-			strcpy(orig_opr1, q->opr1);
-			strcpy(orig_opr2, q->opr2);
 
-			for (j = 0; j < count; ++j)
+		// Invalidate copies if destination is modified
+		for (j = 0; j < copy_count; j++)
+		{
+			if (strcmp(copies[j].dest, q->tempo) == 0)
 			{
+				copies[j].valid = 0;
+			}
+		}
+
+		// Track new copy operations
+		if (strcmp(q->operation, "=") == 0 &&
+			strcmp(q->opr2, "<vide>") == 0 &&
+			strcmp(q->tempo, "") != 0)
+		{
+			strcpy(copies[copy_count].dest, q->tempo);
+			strcpy(copies[copy_count].src, q->opr1);
+			copies[copy_count].valid = 1;
+			copy_count++;
+		}
+
+		// Apply valid copies to operands
+		for (j = 0; j < copy_count; j++)
+		{
+			if (copies[j].valid)
+			{
+				char old_opr1[100], old_opr2[100];
+				int modified = 0;
+
+				strcpy(old_opr1, q->opr1);
+				strcpy(old_opr2, q->opr2);
+
 				if (strcmp(q->opr1, copies[j].dest) == 0)
 				{
 					strcpy(q->opr1, copies[j].src);
+					modified = 1;
 				}
 				if (strcmp(q->opr2, copies[j].dest) == 0)
 				{
 					strcpy(q->opr2, copies[j].src);
+					modified = 1;
 				}
-			}
 
-			// Print if any changes occurred
-			if (strcmp(orig_opr1, q->opr1) != 0)
-			{
-				printf("Copy Propagation: Quad %d - Replaced %s with %s in opr1\n",
-					   i, orig_opr1, q->opr1);
-			}
-			if (strcmp(orig_opr2, q->opr2) != 0)
-			{
-				printf("Copy Propagation: Quad %d - Replaced %s with %s in opr2\n",
-					   i, orig_opr2, q->opr2);
-			}
-		}
-	}
-
-	// Second pass: Remove redundant copy assignments
-	int new_qc = 0;
-	qdr new_quad[200];
-	for (i = 0; i < qc; ++i)
-	{
-		qdr *q = &quad[i];
-		if (strcmp(q->operation, "=") == 0 && strcmp(q->opr2, "<vide>") == 0)
-		{
-			char *dest = q->tempo;
-			int used = 0;
-			for (j = i + 1; j < qc; ++j)
-			{
-				if (strcmp(quad[j].opr1, dest) == 0 || strcmp(quad[j].opr2, dest) == 0)
+				if (modified)
 				{
-					used = 1;
-					break;
+					char details[256];
+					snprintf(details, sizeof(details),
+							 "Replaced [%s,%s] with [%s,%s]",
+							 old_opr1, old_opr2, q->opr1, q->opr2);
+					log_change(i, "COPY_PROPAGATION", details);
+					changed = true;
 				}
 			}
-			if (!used)
-			{
-				printf("Copy Propagation: Deleting Quad %d - %s = %s\n",
-					   i, q->tempo, q->opr1);
-				continue; // Skip this quad
-			}
 		}
-		new_quad[new_qc++] = *q;
 	}
-	memcpy(quad, new_quad, new_qc * sizeof(qdr));
-	qc = new_qc;
-
-	// Cleanup
-	for (i = 0; i < count; ++i)
-	{
-		free(copies[i].dest);
-		free(copies[i].src);
-	}
-	free(copies);
+	return changed;
 }
 
-// 2. Propagation d’expression (Expression Propagation) with logging
-void expression_propagation()
+// 2. Expression Propagation
+bool expression_propagation()
 {
-	struct Expr
+	bool changed = false;
+	struct ExprEntry
 	{
-		char *var;
-		char *op;
-		char *op1;
-		char *op2;
-	};
-	struct Expr *exprs = NULL;
-	int count = 0;
+		char var[100], op[100], op1[100], op2[100];
+	} exprs[100];
+	int expr_count = 0;
 	int i, j;
 
-	// First pass: Collect expressions
-	for (i = 0; i < qc; ++i)
+	for (i = 0; i < qc; i++)
 	{
 		qdr *q = &quad[i];
-		if (strcmp(q->operation, "=") != 0 && strcmp(q->operation, "BR") != 0)
-		{
-			exprs = (struct Expr *)realloc(exprs, (count + 1) * sizeof(struct Expr));
-			exprs[count].var = strdup(q->tempo);
-			exprs[count].op = strdup(q->operation);
-			exprs[count].op1 = strdup(q->opr1);
-			exprs[count].op2 = strdup(q->opr2);
-			count++;
-		}
-	}
 
-	// Second pass: Replace uses and log
-	for (i = 0; i < qc; ++i)
-	{
-		qdr *q = &quad[i];
-		for (j = 0; j < count; ++j)
+		// Track expressions (ignore copies and control flow)
+		if (strcmp(q->operation, "=") != 0 &&
+			strcmp(q->operation, "BR") != 0 &&
+			strcmp(q->operation, "BGE") != 0)
 		{
+			strcpy(exprs[expr_count].var, q->tempo);
+			strcpy(exprs[expr_count].op, q->operation);
+			strcpy(exprs[expr_count].op1, q->opr1);
+			strcpy(exprs[expr_count].op2, q->opr2);
+			expr_count++;
+		}
+
+		// Propagate expressions
+		for (j = 0; j < expr_count; j++)
+		{
+			char new_expr[200];
+			sprintf(new_expr, "(%s %s %s)",
+					exprs[j].op1, exprs[j].op, exprs[j].op2);
+
 			if (strcmp(q->opr1, exprs[j].var) == 0)
 			{
-				printf("Expression Propagation: Quad %d - Replaced %s with %s %s %s\n",
-					   i, q->opr1, exprs[j].op1, exprs[j].op, exprs[j].op2);
-				strcpy(q->opr1, exprs[j].op1);
-				// Optionally update operation if needed
+				char details_op1[256];
+				snprintf(details_op1, sizeof(details_op1), "Replaced %s with %s", exprs[j].var, new_expr);
+				strcpy(q->opr1, new_expr);
+				log_change(i, "EXPR_PROPAGATION", details_op1);
+				changed = true;
 			}
 			if (strcmp(q->opr2, exprs[j].var) == 0)
 			{
-				printf("Expression Propagation: Quad %d - Replaced %s with %s %s %s\n",
-					   i, q->opr2, exprs[j].op1, exprs[j].op, exprs[j].op2);
-				strcpy(q->opr2, exprs[j].op1);
+				char details_op2[256];
+				snprintf(details_op2, sizeof(details_op2), "Replaced %s with %s", exprs[j].var, new_expr);
+				strcpy(q->opr2, new_expr);
+				log_change(i, "EXPR_PROPAGATION", details_op2);
+				changed = true;
 			}
 		}
 	}
-
-	// Cleanup
-	for (i = 0; i < count; ++i)
-	{ /* free logic */
-	}
+	return changed;
 }
 
-// 3. Élimination d’expressions redondantes with logging
-void eliminate_redundant_expressions()
+// 3. Redundant Expression Elimination
+bool eliminate_redundant_expressions()
 {
-	struct ExprEntry
+	bool changed = false;
+	struct RedundantExpr
 	{
-		char op[100], opr1[100], opr2[100], temp[100];
-	};
-	struct ExprEntry *expressions = NULL;
-	int size = 0;
+		char op[100], op1[100], op2[100], temp[100];
+	} expr_table[100];
+	int expr_count = 0;
 	int i, j;
 
-	for (i = 0; i < qc; ++i)
+	for (i = 0; i < qc; i++)
 	{
 		qdr *q = &quad[i];
-		if (strcmp(q->operation, "=") == 0 || strcmp(q->operation, "BR") == 0)
+
+		if (strcmp(q->operation, "=") == 0 ||
+			strcmp(q->operation, "BR") == 0)
 			continue;
 
-		for (j = 0; j < size; ++j)
+		// Check for existing equivalent expression
+		for (j = 0; j < expr_count; j++)
 		{
-			if (strcmp(expressions[j].op, q->operation) == 0 &&
-				strcmp(expressions[j].opr1, q->opr1) == 0 &&
-				strcmp(expressions[j].opr2, q->opr2) == 0)
+			if (strcmp(expr_table[j].op, q->operation) == 0 &&
+				strcmp(expr_table[j].op1, q->opr1) == 0 &&
+				strcmp(expr_table[j].op2, q->opr2) == 0)
 			{
-				printf("Redundant Expr Elimination: Quad %d - Replaced with %s\n",
-					   i, expressions[j].temp);
+
+				// Replace with previous result
 				strcpy(q->operation, "=");
-				strcpy(q->opr1, expressions[j].temp);
+				strcpy(q->opr1, expr_table[j].temp);
 				strcpy(q->opr2, "<vide>");
+
+				char details[256];
+				snprintf(details, sizeof(details), "Replaced with %s", expr_table[j].temp);
+				log_change(i, "REDUNDANT_EXPR_ELIM", details);
+				changed = true;
 				break;
 			}
 		}
 
-		// Add to tracked expressions
-		expressions = (struct ExprEntry *)realloc(expressions, (size + 1) * sizeof(struct ExprEntry));
-		strcpy(expressions[size].op, q->operation);
-		strcpy(expressions[size].opr1, q->opr1);
-		strcpy(expressions[size].opr2, q->opr2);
-		strcpy(expressions[size].temp, q->tempo);
-		size++;
+		// Add to expression table
+		strcpy(expr_table[expr_count].op, q->operation);
+		strcpy(expr_table[expr_count].op1, q->opr1);
+		strcpy(expr_table[expr_count].op2, q->opr2);
+		strcpy(expr_table[expr_count].temp, q->tempo);
+		expr_count++;
 	}
-	free(expressions);
+	return changed;
 }
 
-// 4. Simplification algébrique with logging
-void algebraic_simplification()
+// 4. Algebraic Simplification
+bool algebraic_simplification()
 {
+	bool changed = false;
 	int i;
-	for (i = 0; i < qc; ++i)
+
+	for (i = 0; i < qc; i++)
 	{
 		qdr *q = &quad[i];
-		char original_op[100], original_opr1[100], original_opr2[100];
-		strcpy(original_op, q->operation);
-		strcpy(original_opr1, q->opr1);
-		strcpy(original_opr2, q->opr2);
+		char original[200], simplified[200];
+		sprintf(original, "%s %s %s", q->opr1, q->operation, q->opr2);
 
+		// x = y + 0 → x = y
 		if (strcmp(q->operation, "+") == 0 && strcmp(q->opr2, "0") == 0)
 		{
-			printf("Algebraic Simplification: Quad %d - Simplified %s + 0 to %s\n",
-				   i, q->opr1, q->opr1);
 			strcpy(q->operation, "=");
 			strcpy(q->opr2, "<vide>");
+			strcpy(simplified, q->opr1);
+			changed = true;
 		}
+		// x = y * 1 → x = y
 		else if (strcmp(q->operation, "*") == 0 && strcmp(q->opr2, "1") == 0)
 		{
-			printf("Algebraic Simplification: Quad %d - Simplified %s * 1 to %s\n",
-				   i, q->opr1, q->opr1);
 			strcpy(q->operation, "=");
 			strcpy(q->opr2, "<vide>");
+			strcpy(simplified, q->opr1);
+			changed = true;
+		}
+		// x = 0 + y → x = y
+		else if (strcmp(q->operation, "+") == 0 && strcmp(q->opr1, "0") == 0)
+		{
+			strcpy(q->operation, "=");
+			strcpy(q->opr1, q->opr2);
+			strcpy(q->opr2, "<vide>");
+			strcpy(simplified, q->opr1);
+			changed = true;
 		}
 
-		// Add more simplifications here
+		if (changed)
+		{
+
+			char details[256];
+			snprintf(details, sizeof(details), "%s → %s", original, simplified);
+			log_change(i, "ALGEBRAIC_SIMPLIFICATION", details);
+		}
 	}
+	return changed;
 }
 
-// 5. Élimination de code inutile with logging
-void dead_code_elimination()
+// 5. Dead Code Elimination
+bool dead_code_elimination()
 {
+	bool changed = false;
 	int used[200] = {0};
 	int i, j;
 
-	// Mark used variables
-	for (i = 0; i < qc; ++i)
+	// Mark used temporaries (backward analysis)
+	for (i = qc - 1; i >= 0; i--)
 	{
 		qdr *q = &quad[i];
+
+		// Mark operands as used
 		if (strcmp(q->opr1, "<vide>") != 0)
-			used[i] = 1;
+		{
+			for (j = 0; j < qc; j++)
+			{
+				if (strcmp(quad[j].tempo, q->opr1) == 0)
+				{
+					used[j] = 1;
+				}
+			}
+		}
 		if (strcmp(q->opr2, "<vide>") != 0)
-			used[i] = 1;
+		{
+			for (j = 0; j < qc; j++)
+			{
+				if (strcmp(quad[j].tempo, q->opr2) == 0)
+				{
+					used[j] = 1;
+				}
+			}
+		}
 	}
 
 	// Remove unused quads
 	int new_qc = 0;
 	qdr new_quad[200];
-	for (i = 0; i < qc; ++i)
+	for (i = 0; i < qc; i++)
 	{
-		qdr *q = &quad[i];
-		if (strcmp(q->tempo, "<vide>") != 0)
+		if (used[i] || strcmp(quad[i].operation, "BR") == 0 ||
+			strcmp(quad[i].operation, "BGE") == 0)
 		{
-			int is_used = 0;
-			for (j = i + 1; j < qc; ++j)
-			{
-				if (strcmp(quad[j].opr1, q->tempo) == 0 || strcmp(quad[j].opr2, q->tempo) == 0)
-				{
-					is_used = 1;
-					break;
-				}
-			}
-			if (!is_used)
-			{
-				printf("Dead Code Elimination: Removing Quad %d - %s not used\n", i, q->tempo);
-				continue;
-			}
+			new_quad[new_qc++] = quad[i];
 		}
-		new_quad[new_qc++] = *q;
+		else
+		{
+			char details[256];
+			snprintf(details, sizeof(details), "Removed %s = ...", quad[i].tempo);
+			log_change(i, "DEAD_CODE_ELIMINATION", details);
+			changed = true;
+		}
 	}
+
 	memcpy(quad, new_quad, new_qc * sizeof(qdr));
 	qc = new_qc;
+	return changed;
+}
+
+// Optimization driver
+void optimize()
+{
+	int iteration = 1;
+	bool changed;
+
+	do
+	{
+		printf("\n\n\n=== Optimization Pass %d ===\n", iteration++);
+		changed = false;
+
+		printf("\n\n=== COPY PROPAGATION ===\n\n");
+		changed |= copy_propagation();
+		printf("\n\n=== EXPRESSION PROPAGATION ===\n\n");
+		changed |= expression_propagation();
+		printf("\n\n=== REDUNDANT EXPR ELIMINATION ===\n\n");
+		changed |= eliminate_redundant_expressions();
+		printf("\n\n=== ALGEBRAIC SIMPLIFICATION ===\n\n");
+		changed |= algebraic_simplification();
+		printf("\n\n=== DEAD CODE ELIMINATION ===\n\n");
+		changed |= dead_code_elimination();
+
+	} while (changed);
+
+	printf("\nNo more optimizations possible\n");
 }
