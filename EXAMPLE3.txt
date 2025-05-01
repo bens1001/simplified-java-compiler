@@ -1,0 +1,12 @@
+class Main {
+    public static void main() {
+        int j = 5; 
+        int x,y,z,w,f;
+
+        x = 4 * (j - 1);
+        y = 4 * (j - 1);
+        z = 4 * ((j + 1) - 1);
+        w = 4 * ((j + 1) - 1);
+        f = z + y;
+    }
+}

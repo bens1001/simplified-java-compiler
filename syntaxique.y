@@ -1539,8 +1539,9 @@ int main(int argc,char *argv[]){
   for(i=0;i<method_count;i++){
     printf("\n%s %d %d\n",method_names[i],method_entry_qc[i],method_return_qc[i]);
   }
+  affiche_quad_simple();
   optimize();
-  affiche_quad();
+  affiche_quad_simple();
   liberer_table();
   return 0;
 }
