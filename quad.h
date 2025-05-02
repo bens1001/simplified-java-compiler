@@ -55,10 +55,9 @@ void affiche_quad()
 
 void affiche_quad_simple()
 {
-	printf("\n~~~~~~~~~~~~~~~~~~~~ Les Quadruplets ~~~~~~~~~~~~~~~~~~~~\n");
-
 	int i;
 
+	printf("\n");
 	for (i = 0; i < qc; i++)
 	{
 		if (strcmp(quad[i].operation, "+") == 0 || strcmp(quad[i].operation, "-") == 0 || strcmp(quad[i].operation, "*") == 0 || strcmp(quad[i].operation, "/") == 0)
@@ -70,19 +69,36 @@ void affiche_quad_simple()
 			printf("\n%d) %s = %s ", i, quad[i].tempo, quad[i].opr1);
 		}
 	}
+	printf("\n\n");
 }
 
-extern qdr quad[MAX_QUADS];
+void eliminate_empty_branches()
+{
+	int i = 0, k;
+	while (i < qc)
+	{
+		if (strcmp(quad[i].operation, "BR") == 0 &&
+			strcmp(quad[i].opr1, " ") == 0 &&
+			strcmp(quad[i].opr2, "<vide>") == 0 &&
+			strcmp(quad[i].tempo, "<vide>") == 0)
+		{
+			printf("EMPTY BRANCH ELIMINATION: Removed quadruple %d ( BR , , <vide> , <vide> )\n", i);
+
+			for (k = i; k < qc - 1; k++)
+			{
+				quad[k] = quad[k + 1];
+			}
+			qc--;
+		}
+		else
+		{
+			i++;
+		}
+	}
+}
 
 // Flag indiquant s'il y a eu modification
 static int changed;
-
-// Fonctions utilitaires de log
-static void log_update(const char *msg, int idx, const char *oldv, const char *newv)
-{
-	printf(msg, idx, oldv, newv);
-	printf("\n");
-}
 
 // 1. Propagation de copie
 void propagation_copie()
@@ -97,27 +113,34 @@ void propagation_copie()
 			strcpy(src, quad[i].opr1);
 			char dst[100];
 			strcpy(dst, quad[i].tempo);
+
+			// Skip propagation if dst is "<vide>"
+			if (strcmp(dst, "<vide>") == 0)
+				continue;
+
 			for (j = i + 1; j < qc; j++)
 			{
 				if (strcmp(quad[j].opr1, dst) == 0)
 				{
-					log_update("COPY PROPAGATION: remplace arg1 dans quad %d de '%s' a '%s'", j, dst, src);
+					printf("COPY PROPAGATION: In quadruple %d, replaced '%s' with '%s' in operand 1\n", j, dst, src);
 					mise_jr_quad(j, 2, src);
 					changed = 1;
+					// affiche_quad_simple();
 				}
 				if (strcmp(quad[j].opr2, dst) == 0)
 				{
-					log_update("COPY PROPAGATION: remplace arg2 dans quad %d de '%s' a '%s'", j, dst, src);
+					printf("COPY PROPAGATION: In quadruple %d, replaced '%s' with '%s' in operand 2\n", j, dst, src);
 					mise_jr_quad(j, 3, src);
 					changed = 1;
+					// affiche_quad_simple();
 				}
 			}
 		}
 	}
 }
 
-// 2. Propagation d'expression
-void propagation_expression()
+// 2. Élimination d'expressions redondantes
+void elimination_expr_redondantes()
 {
 	int i, j;
 	for (i = 0; i < qc; i++)
@@ -129,84 +152,251 @@ void propagation_expression()
 				strcmp(quad[i].opr2, quad[j].opr2) == 0 &&
 				strcmp(quad[i].operation, "=") != 0)
 			{
+				// Skip if the temporary is "<vide>"
+				if (strcmp(quad[j].tempo, "<vide>") == 0)
+					continue;
+
 				// Même opération et mêmes opérandes
 				char oldt[100];
 				strcpy(oldt, quad[j].tempo);
 				char newt[100];
 				strcpy(newt, quad[i].tempo);
-				log_update("EXPRESSION PROPAGATION: remplace tempo dans quad %d de '%s' a '%s'", j, oldt, newt);
+				printf("REDUNDANT EXPR ELIMINATION: In quadruple %d, replaced temporary '%s' with '%s'\n", j, oldt, newt);
 				// transforme en copie
 				mise_jr_quad(j, 1, "=");
 				mise_jr_quad(j, 2, newt);
 				mise_jr_quad(j, 3, "");
 				changed = 1;
+				// affiche_quad_simple();
 			}
 		}
 	}
 }
 
-// 3. Élimination d'expressions redondantes
-void elimination_expr_redondantes()
+// 3. Propagation d'expression
+void propagation_expression()
 {
 	int i, j, k;
 	for (i = 0; i < qc; i++)
 	{
-		if (strcmp(quad[i].operation, "=") == 0)
-			continue;
+		// Check if the quadruple defines a temporary with a simple assignment or operation
+		if (quad[i].tempo[0] != 'T')
+			continue; // Skip if not a temporary
+		char temp[100];
+		strcpy(temp, quad[i].tempo);
+
+		// Count uses of this temporary
+		int use_count = 0;
+		int use_index = -1;
 		for (j = i + 1; j < qc; j++)
 		{
-			if (strcmp(quad[i].operation, quad[j].operation) == 0 &&
-				strcmp(quad[i].opr1, quad[j].opr1) == 0 &&
-				strcmp(quad[i].opr2, quad[j].opr2) == 0)
+			if (strcmp(quad[j].opr1, temp) == 0 || strcmp(quad[j].opr2, temp) == 0)
 			{
-				log_update("REDUNDANT EXPR ELIMINATION: supprime quad %d redondant", j, "", "");
-				// suppression du quad j
-				for (k = j; k < qc - 1; k++)
+				use_count++;
+				use_index = j;
+				if (use_count > 1)
+					break; // More than one use, stop checking
+			}
+		}
+
+		// If used exactly once, try to inline
+		if (use_count == 1 && use_index != -1)
+		{
+			// Check if the temporary is used in a binary operation
+			if ((strcmp(quad[use_index].operation, "+") == 0 ||
+				 strcmp(quad[use_index].operation, "-") == 0 ||
+				 strcmp(quad[use_index].operation, "*") == 0 ||
+				 strcmp(quad[use_index].operation, "/") == 0) &&
+				(strcmp(quad[use_index].opr1, temp) == 0 || strcmp(quad[use_index].opr2, temp) == 0))
+			{
+
+				// Ensure no modification to variables in the expression between i and use_index
+				bool safe = true;
+				char base_var[100] = "";
+				if (strcmp(quad[i].operation, "=") == 0)
+					strcpy(base_var, quad[i].opr1);
+				else
+					strcpy(base_var, quad[i].opr1); // Simplistic; assumes opr1 is the base variable
+
+				for (k = i + 1; k < use_index; k++)
 				{
-					quad[k] = quad[k + 1];
+					if (strcmp(quad[k].tempo, base_var) == 0)
+					{
+						safe = false;
+						break;
+					}
 				}
-				qc--;
-				changed = 1;
-				j--; // réexamine l'indice j après shift
+
+				if (safe)
+				{
+					// Inline the expression
+					if (strcmp(quad[i].operation, "=") == 0)
+					{ // Simple assignment
+						if (strcmp(quad[use_index].opr1, temp) == 0)
+						{
+							mise_jr_quad(use_index, 2, quad[i].opr1);
+						}
+						else
+						{
+							mise_jr_quad(use_index, 3, quad[i].opr1);
+						}
+						printf("EXPRESSION PROPAGATION: Inlined '%s = %s' into quadruple %d\n", temp, quad[i].opr1, use_index);
+						// affiche_quad_simple();
+					}
+				}
 			}
 		}
 	}
+}
+
+int is_constant(char *str)
+{
+	int i;
+	for (i = 0; str[i]; i++)
+	{
+		if (str[i] < '0' || str[i] > '9')
+			return 0;
+	}
+	return 1;
 }
 
 // 4. Simplification algébrique
 void simplification_algebrique()
 {
-	int i;
+	int i, j, k;
 	for (i = 0; i < qc; i++)
 	{
-		// x = y + 0 ou y - 0
-		if ((strcmp(quad[i].operation, "+") == 0 || strcmp(quad[i].operation, "-") == 0) &&
-			strcmp(quad[i].opr2, "0") == 0)
+
+		if ((strcmp(quad[i].operation, "+") == 0 || strcmp(quad[i].operation, "-") == 0))
 		{
-			log_update("ALGEBRAIC SIMPLIFICATION: simplifie quad %d '%s %s 0' en copie", i, quad[i].tempo, quad[i].opr1);
-			mise_jr_quad(i, 1, "=");
-			mise_jr_quad(i, 2, quad[i].opr1);
-			mise_jr_quad(i, 3, "");
-			changed = 1;
-		}
-		// x = y * 1 ou y * 0
-		if (strcmp(quad[i].operation, "*") == 0)
-		{
-			if (strcmp(quad[i].opr2, "1") == 0)
+			// Simplifying x + 0 or x - 0 to x
+			if (strcmp(quad[i].opr2, "0") == 0)
 			{
-				log_update("ALGEBRAIC SIMPLIFICATION: simplifie quad %d '%s * 1' en copie", i, quad[i].tempo, quad[i].opr1);
+				printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, simplified '%s %s 0' to '%s'\n", i, quad[i].opr1, quad[i].operation, quad[i].opr1);
 				mise_jr_quad(i, 1, "=");
 				mise_jr_quad(i, 2, quad[i].opr1);
 				mise_jr_quad(i, 3, "");
 				changed = 1;
+				// affiche_quad_simple();
 			}
+			// Simplifying 0 + x to x
+			else if (strcmp(quad[i].opr1, "0") == 0 && strcmp(quad[i].operation, "+") == 0)
+			{
+				printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, simplified '0 %s %s' to '%s'\n", i, quad[i].opr2, quad[i].operation, quad[i].opr2);
+				mise_jr_quad(i, 1, "=");
+				mise_jr_quad(i, 2, quad[i].opr2);
+				mise_jr_quad(i, 3, "");
+				changed = 1;
+				// affiche_quad_simple();
+			}
+		}
+		if (strcmp(quad[i].operation, "*") == 0)
+		{
+			// Simplify x * 1 to x
+			if (strcmp(quad[i].opr2, "1") == 0)
+			{
+				printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, simplified '%s * 1' to '%s'\n", i, quad[i].opr1, quad[i].opr1);
+				mise_jr_quad(i, 1, "=");
+				mise_jr_quad(i, 2, quad[i].opr1);
+				mise_jr_quad(i, 3, "");
+				changed = 1;
+				// affiche_quad_simple();
+			}
+			// Simplify x * 0 to 0
 			else if (strcmp(quad[i].opr2, "0") == 0)
 			{
-				log_update("ALGEBRAIC SIMPLIFICATION: simplifie quad %d '%s * 0' en 0", i, quad[i].tempo, "");
+				printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, simplified '%s * 0' to '0'\n", i, quad[i].opr1);
 				mise_jr_quad(i, 1, "=");
 				mise_jr_quad(i, 2, "0");
 				mise_jr_quad(i, 3, "");
 				changed = 1;
+				// affiche_quad_simple();
+			}
+			// Replacing multiplication with addition when the constant is the second operand (e.g., x * 2 -> x + x)
+			else if (is_constant(quad[i].opr2))
+			{
+				int n = atoi(quad[i].opr2);
+				if (n == 2)
+				{
+					char base[100];
+					strcpy(base, quad[i].opr1);
+					char result[100];
+					strcpy(result, quad[i].tempo);
+
+					// Replace T = x * 2 with T = x + x
+					mise_jr_quad(i, 1, "+");
+					mise_jr_quad(i, 2, base);
+					mise_jr_quad(i, 3, base);
+
+					printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, replaced '%s = %s * %d' with '%s = %s + %s'\n", i, result, base, n, result, base, base);
+					changed = 1;
+					// affiche_quad_simple();
+				}
+			}
+			// Replacing multiplication with addition when the constant is the first operand (e.g., 2 * x -> x + x)
+			else if (is_constant(quad[i].opr1))
+			{
+				int n = atoi(quad[i].opr1);
+				if (n == 2)
+				{
+					char base[100];
+					strcpy(base, quad[i].opr2);
+					char result[100];
+					strcpy(result, quad[i].tempo);
+
+					// Replace T = x * 2 with T = x + x
+					mise_jr_quad(i, 1, "+");
+					mise_jr_quad(i, 2, base);
+					mise_jr_quad(i, 3, base);
+
+					printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, replaced '%s = %s * %d' with '%s = %s + %s'\n", i, result, base, n, result, base, base);
+					changed = 1;
+					// affiche_quad_simple();
+				}
+			}
+		}
+
+		// Simplifying chains like T = a + c1; U = T - c2
+		if ((strcmp(quad[i].operation, "+") == 0 || strcmp(quad[i].operation, "-") == 0) &&
+			is_constant(quad[i].opr2))
+		{
+			char temp[100];
+			strcpy(temp, quad[i].tempo);
+			int offset = atoi(quad[i].opr2);
+			if (strcmp(quad[i].operation, "-") == 0)
+				offset = -offset;
+
+			for (j = i + 1; j < qc; j++)
+			{
+				if ((strcmp(quad[j].operation, "+") == 0 || strcmp(quad[j].operation, "-") == 0) &&
+					strcmp(quad[j].opr1, temp) == 0 && is_constant(quad[j].opr2))
+				{
+					int offset2 = atoi(quad[j].opr2);
+					if (strcmp(quad[j].operation, "-") == 0)
+						offset2 = -offset2;
+					int new_offset = offset + offset2;
+
+					if (new_offset == 0)
+					{
+						printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, simplified '%s = %s %s %s' to '%s = %s' due to offset cancellation\n", j, quad[j].tempo, quad[j].opr1, quad[j].operation, quad[j].opr2, quad[j].tempo, quad[i].opr1);
+						mise_jr_quad(j, 1, "=");
+						mise_jr_quad(j, 2, quad[i].opr1);
+						mise_jr_quad(j, 3, "");
+						// affiche_quad_simple();
+					}
+					else
+					{
+						char new_const[100];
+						sprintf(new_const, "%d", abs(new_offset));
+						printf("ALGEBRAIC SIMPLIFICATION: In quadruple %d, simplified '%s = %s %s %s' to '%s = %s %s %s'\n", j, quad[j].tempo, quad[j].opr1, quad[j].operation, quad[j].opr2, quad[j].tempo, quad[i].opr1, new_offset >= 0 ? "+" : "-", new_const);
+						mise_jr_quad(j, 1, new_offset >= 0 ? "+" : "-");
+						mise_jr_quad(j, 2, quad[i].opr1);
+						mise_jr_quad(j, 3, new_const);
+						// affiche_quad_simple();
+					}
+					changed = 1;
+					break;
+				}
 			}
 		}
 	}
@@ -231,12 +421,13 @@ void elimination_code_inutile()
 		}
 		if (!used && quad[i].tempo[0] == 'T')
 		{
-			log_update("DEAD CODE ELIMINATION: supprime quad %d inutil dest=%s", i, quad[i].tempo, "");
+			printf("DEAD CODE ELIMINATION: Removed quadruple %d defining unused temporary '%s'\n", i, quad[i].tempo);
 			for (k = i; k < qc - 1; k++)
 				quad[k] = quad[k + 1];
 			qc--;
 			changed = 1;
 			i--;
+			// affiche_quad_simple();
 		}
 	}
 }
@@ -245,15 +436,17 @@ void elimination_code_inutile()
 void optimize()
 {
 	int iteration = 0;
+	eliminate_empty_branches();
 	do
 	{
 		changed = 0;
 		printf("\n--- Iteration %d ---\n", ++iteration);
+		elimination_expr_redondantes();
 		propagation_expression();
 		simplification_algebrique();
-		elimination_expr_redondantes();
 		propagation_copie();
 		elimination_code_inutile();
+		affiche_quad_simple();
 	} while (changed);
 
 	printf("\n\nOptimisation ended after %d iterations\n", iteration);

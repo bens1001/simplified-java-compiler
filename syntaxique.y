@@ -1541,7 +1541,6 @@ int main(int argc,char *argv[]){
   }
   affiche_quad_simple();
   optimize();
-  affiche_quad_simple();
   liberer_table();
   return 0;
 }
