@@ -1,3 +1,6 @@
+#ifndef QUAD_H
+#define QUAD_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -451,3 +454,5 @@ void optimize()
 
 	printf("\n\nOptimisation ended after %d iterations\n", iteration);
 }
+
+#endif

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "ts.h"
 #include "quad.h"
+#include "assembly.h"
 
 int nb_line=1;
 int nb_character=0;
@@ -1541,6 +1542,7 @@ int main(int argc,char *argv[]){
   }
   affiche_quad_simple();
   optimize();
+  generate_asm_file("example.asm");
   liberer_table();
   return 0;
 }

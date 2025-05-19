@@ -20,7 +20,6 @@ unsigned long hash(const char *str)
 // Definition of the data structures
 typedef struct ElementNode
 {
-    int state;
     char name[96];
     char code[20];
     char type[50];
@@ -36,7 +35,6 @@ typedef struct ElementNode
 
 typedef struct KeywordNode
 {
-    int state;
     char name[20];
     char type[20];
     struct KeywordNode *next;
@@ -45,7 +43,6 @@ typedef struct KeywordNode
 
 typedef struct SeparatorNode
 {
-    int state;
     char name[20];
     char type[20];
     struct SeparatorNode *next;
