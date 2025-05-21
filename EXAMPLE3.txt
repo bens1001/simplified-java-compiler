@@ -22,5 +22,14 @@ class Main {
         z = 4 * ((j + 1) - 1);
         int w = 4 * ((j + 1) - 1);
         f = z + y;
+
+        int[10] arr;
+        arr[0] = 5;
+        arr[1] = 10;
+        arr[2] = arr[0] + arr[1];
+        int[3][3] matrix;
+        matrix[0][0] = 1;
+
+        arr[0] = 6 * 24 + 3 - 2 * 7 ;
     }
 }

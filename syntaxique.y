@@ -31,6 +31,8 @@ char string_message[20];
 
 int for_scope_parser_counter=0;
 
+char main_quad[20];
+
 char i[20];
 int qc;
 int tmp=0;
@@ -81,6 +83,28 @@ char tab[20];
     } object;
  
 struct object obj;
+
+struct constructor_instruction {
+    char operation[100];
+    char opr1[100];
+    char opr2[100];
+    char tempo[100];
+};
+
+#define MAX_CONSTRUCTOR_INSTR 1000
+struct constructor_instruction all_constructor_instr[MAX_CONSTRUCTOR_INSTR];
+int current_instr_index = 0; 
+
+struct ClassConstructor {
+    char class_name[20];
+    int start_index;
+    int end_index;
+};
+
+struct ClassConstructor class_constructors[100]; 
+int class_constructor_count = 0;
+int constructor_start_index = 0;
+char current_class[20];
 %}
 
 %union {
@@ -146,7 +170,7 @@ struct object obj;
 %left opMUL opDIV opMOD
 
 %%
-JAVA: {set_scope("GLOBAL")} IMPORT_LIST  CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
+JAVA: {set_scope("GLOBAL"); remplir_quad("BR", " ", "<vide>", "<vide>");} IMPORT_LIST  CLASS_LIST MAIN_CLASS { printf("\n\nCode compiled correctly.\n\n"); YYACCEPT; }
 ;
 
 // ------------------------------- PACKAGE IMPORT BLOCK -------------------------------------------------------------------------
@@ -201,7 +225,7 @@ MAIN_CLASS: kwCLASS kwMAIN acco MAIN_METHOD accf
           | /* empty */
 ;
 
-MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN {enter_scope("Main");} po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf {exit_scope();}
+MAIN_METHOD: kwPUBLIC kwSTATIC kwVOID kwMAIN {enter_scope("Main"); sprintf(main_quad,"%d",qc); mise_jr_quad(0, 2, main_quad);} po METHOD_PARAMETER_LIST pf acco INSTRUCTION_LIST accf {exit_scope();}
 ;
 
 // ------------------------------ CLASS BLOCK ----------------------------------------------------------------------------------
@@ -276,8 +300,8 @@ ATTRIBUTE_LIST: vg IDF OPTIONAL_ASSIGN ATTRIBUTE_LIST
 
 CONSTRUCTOR: IDF 
               {
-                method_entry_qc[method_count] = qc;
-                method_names[method_count] = strdup($1);
+                strcpy(current_class, $1);
+                constructor_start_index = current_instr_index;
               }
               CONSTRUCTOR_SUFFIX 
                 {
@@ -288,15 +312,18 @@ CONSTRUCTOR: IDF
                   sprintf(parameters_value,"%d",parameter_counter); 
                   search($1, "Constructor", "-", "-", "-", "-",parameters_value, current_scope, 0);
                   setParameterTypes($1, current_scope, "Constructor", parameter_types, parameter_counter);
+
+                  strcpy(class_constructors[class_constructor_count].class_name, current_class);
+                  class_constructors[class_constructor_count].start_index = constructor_start_index;
+                  class_constructors[class_constructor_count].end_index = current_instr_index;
+                  class_constructor_count++;
+                  strcpy(current_class, "");
                 }
 ;
 
 CONSTRUCTOR_SUFFIX: po {parameter_counter = 0;}  CONSTRUCTOR_PARAMETER_LIST pf acco INSTRUCTION_LIST accf 
                        {
                         for_scope_parser_counter=0;
-                        method_return_qc[method_count] = qc;
-                        remplir_quad("BR", " ", "<vide>", "<vide>");
-                        method_count++;
                        } 
 ;
 
@@ -619,6 +646,8 @@ INDEX: EXPRESSION
 
 OBJECT_CREATION: kwNEW IDF {parameter_counter=0;} po ARGUMENT_LIST pf
                     {
+                      int i,k;
+
                       if(!idf_exists_same_scope($2, "GLOBAL", "Class")) {
                         printf("\nFile '%s', semantic error, line %d, column %d, entity '%s': Undeclared constructor.\n",file_name,nb_line,nb_character,$2);
                         YYABORT;
@@ -634,7 +663,6 @@ OBJECT_CREATION: kwNEW IDF {parameter_counter=0;} po ARGUMENT_LIST pf
 
                       char **param_types = getParameterTypes($2, concat("GLOBAL",$2), "Constructor");
                       if (param_types) {
-                        int i;
                         for (i = 0; i < parameter_counter; i++) {
                           if (param_types[i] && argument_types[i] && strcmp(param_types[i], argument_types[i]) != 0) {
                             printf("\nFile '%s', semantic error, line %d, column %d: Argument type mismatch for parameter %d in constructor '%s': expected '%s', got '%s'.\n",
@@ -644,19 +672,31 @@ OBJECT_CREATION: kwNEW IDF {parameter_counter=0;} po ARGUMENT_LIST pf
                         }
                       }
                       
-                      int call_q = qc;
-                      remplir_quad("BR", " ", "<vide>", "<vide>"); 
-                      int i;
-                      for (i = 0; i < method_count; i++) {
-                          if (strcmp(method_names[i], $2) == 0) {
-                              char target_entry[16],target_return[16];
-                              sprintf(target_entry, "%d", method_entry_qc[i]);
-                              sprintf(target_return, "%d", qc);
-                              mise_jr_quad(call_q, 2, target_entry);
-                              mise_jr_quad(method_return_qc[i], 2, target_return);
+                      remplir_quad("NEW", $2, "<vide>", current_IDF); 
+
+                      int start = -1, end = -1;
+                      for (k = 0; k < class_constructor_count; k++) {
+                          if (strcmp(class_constructors[k].class_name, $2) == 0) {
+                              start = class_constructors[k].start_index;
+                              end = class_constructors[k].end_index;
                               break;
                           }
                       }
+                      if (start != -1) {
+                          for (i = start; i < end; i++) {
+                              char mapped_tempo[100];
+                              if (strncmp(all_constructor_instr[i].tempo, "this.", 5) == 0) {
+                                  sprintf(mapped_tempo, "%s_%s", current_IDF, all_constructor_instr[i].tempo + 5);
+                              } else {
+                                  strcpy(mapped_tempo, all_constructor_instr[i].tempo);
+                              }
+                              remplir_quad(all_constructor_instr[i].operation, 
+                                            all_constructor_instr[i].opr1, 
+                                            all_constructor_instr[i].opr2, 
+                                            mapped_tempo);
+                          }
+                      }
+
                       $$=strdup($2);
                     }
 ;
@@ -897,7 +937,16 @@ ASSIGN: OBJECT_ACCESS opASSIGN GLOBAL_EXPRESSION
                         }
                     }
 
-                    remplir_quad("=", $3.value, "<vide>", $1.object_path);
+                    if (strcmp(current_class, "") != 0 && strncmp($1.object_path, "this.", 5) == 0) {
+                        // Inside constructor, store instruction in global array
+                        strcpy(all_constructor_instr[current_instr_index].operation, "=");
+                        strcpy(all_constructor_instr[current_instr_index].opr1, $3.value);
+                        strcpy(all_constructor_instr[current_instr_index].opr2, "<vide>");
+                        strcpy(all_constructor_instr[current_instr_index].tempo, $1.object_path);
+                        current_instr_index++;
+                    } else {
+                        remplir_quad("=", $3.value, "<vide>", $1.object_path);
+                    }
 
                     char* base_nature = get_element($1.nature_path, false);
                     if (strcmp(base_nature,"Variable")==0) update(base_name,base_nature,"-1",$3.value,"-1","-1","-1",current_scope);
@@ -933,7 +982,7 @@ ARRAY_INSTANCE: acco SUBARRAY_LIST accf
                   {
                     int n = $2.count;
                     $$.type = malloc(strlen($2.type) + 8);
-                    sprintf($$ .type, "%s[%d]", $2.type, n);
+                    sprintf($$.type, "%s[%d]", $2.type, n);
                     $$.count = n;
                   }
 ;
@@ -1517,7 +1566,6 @@ RETURN: kwRETURN EXPRESSION
             method_return_qc[method_count] = qc;
             remplir_quad("BR", " ", "<vide>", "<vide>");
             method_count++;
-            remplir_quad("BR", " ", "<vide>", "<vide>");
 
             has_returned=true;
           }
@@ -1536,12 +1584,13 @@ int main(int argc,char *argv[]){
   yyparse();
   afficher();
   affiche_quad();
-  int i;
+  /* int i;
   for(i=0;i<method_count;i++){
     printf("\n%s %d %d\n",method_names[i],method_entry_qc[i],method_return_qc[i]);
-  }
+  } */
   affiche_quad_simple();
   optimize();
+  affiche_quad();
   generate_asm_file("example.asm");
   liberer_table();
   return 0;

@@ -75,9 +75,25 @@ void affiche_quad_simple()
 	printf("\n\n");
 }
 
+void update_targets_after_removal(int removed_index)
+{
+	int k;
+	for (k = 0; k < qc; k++)
+	{
+		if ((strcmp(quad[k].operation, "BR") == 0 || strcmp(quad[k].operation, "BNE") == 0 || strcmp(quad[k].operation, "BE") == 0 || strcmp(quad[k].operation, "BL") == 0 || strcmp(quad[k].operation, "BLE") == 0 || strcmp(quad[k].operation, "BG") == 0 || strcmp(quad[k].operation, "BGE") == 0 || strcmp(quad[k].operation, "BZ") == 0 || strcmp(quad[k].operation, "BNZ") == 0) && is_number(quad[k].opr1))
+		{
+			int target = atoi(quad[k].opr1);
+			if (target > removed_index)
+			{
+				sprintf(quad[k].opr1, "%d", target - 1);
+			}
+		}
+	}
+}
+
 void eliminate_empty_branches()
 {
-	int i = 0, k;
+	int i = 0;
 	while (i < qc)
 	{
 		if (strcmp(quad[i].operation, "BR") == 0 &&
@@ -85,13 +101,7 @@ void eliminate_empty_branches()
 			strcmp(quad[i].opr2, "<vide>") == 0 &&
 			strcmp(quad[i].tempo, "<vide>") == 0)
 		{
-			printf("EMPTY BRANCH ELIMINATION: Removed quadruple %d ( BR , , <vide> , <vide> )\n", i);
-
-			for (k = i; k < qc - 1; k++)
-			{
-				quad[k] = quad[k + 1];
-			}
-			qc--;
+			mise_jr_quad(i, 2, "END");
 		}
 		else
 		{
@@ -428,6 +438,7 @@ void elimination_code_inutile()
 			for (k = i; k < qc - 1; k++)
 				quad[k] = quad[k + 1];
 			qc--;
+			update_targets_after_removal(i);
 			changed = 1;
 			i--;
 			// affiche_quad_simple();

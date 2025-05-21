@@ -38,12 +38,12 @@ class Person {
 
     // Méthode qui retourne la moyenne des notes
     double getAverageGrade() {
-        if (grades.length == 0) return 0; // Eviter la division par zéro
+        if (grades == 0) {return 0/5;} // Eviter la division par zéro
         int sum = 0;
         for (int grade : grades) {
             sum += grade;
         }
-        return (double) sum / grades.length;
+        return sum / grades;
     }
 }
 

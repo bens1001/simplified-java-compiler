@@ -2,15 +2,13 @@ import edu.example.ArrayTools;
 import edu.example.CharUtils;
 
 class Person {
-    // int age,x;
-    // int age;
-    int age = 2;
+    int age;
     char[1] gender;
     boolean isStudent;
-    int[7][50][20][275] grades;
+    int[7][8][5][2] grades;
     
 
-    Person(int age, char[1] gender, boolean isStudent, int[7][50][20][275] grades) {
+    Person(int age, char[1] gender, boolean isStudent, int[7][8][5][2] grades) {
         this.age = age;
         this.gender = gender;
         this.isStudent = isStudent;
@@ -19,8 +17,10 @@ class Person {
     
     void display() {
         // Fixed array iteration
-        boolean b = true;
+        int b = 1;
+        int k = 0;
         do { // First dimension size=4
+            b++;
             for(int j=0; j<50; j++) { // Second dimension size=50
                     for(int j=0; j<2; j++) { // Second dimension size=50
                         k++;
@@ -60,7 +60,7 @@ class GradeBook {
     void processGrades() {
         for(int i=0; i<10; i++) {
             for(int j=0; j<5; j++) {
-                if(this.scores[3][2] < 0) {
+                if(i == 5) {
                     System.out.println("Invalid grade");
                     i = i + 1;
                 }else{
@@ -73,17 +73,17 @@ class GradeBook {
 }
 
 class Student {
-    char[20] name;
+    int names;
     Course courses;
     
-    Student(char[20] name, Course courses) {
-        this.name = name;
+    Student(int names, Course courses) {
+        this.names = names;
         this.courses = courses;
     }
     
     int validateCourses() {
         for(int i=0; i<5; i++) {
-            if(this.courses.duration > 2) {
+            if(i > 2) {
                 System.out.println("Long course");
             }
         }
@@ -101,7 +101,7 @@ class Attendance {
     void checkAttendance() {
         for(int i=0; i<5; i++) {
             for(int j=0; j<7; j++) {
-                if(this.records[2][3]>5) {
+                if(j>5) {
                     System.out.print("Present ");
                     i++;
                 } else {
@@ -117,7 +117,7 @@ class Attendance {
 class Main {
     public static void main() {
         // Valid object creation
-        int[7][50][20][275] grades = {{{{50},{50},{23},{12}},{{50},{50},{23},{12}}},{{{50},{50},{23},{12}},{{50},{50},{23},{12}}}};
+        int[7][8][5][2] grades = {{{{50},{50},{23},{12}},{{50},{50},{23},{12}}},{{{50},{50},{23},{12}},{{50},{50},{23},{12}}}};
         Person p1 = new Person(20, 'M', true, grades);
         
         p1.display();
@@ -146,7 +146,7 @@ class Main {
         // address = {'C','a','m','p','u','s'}; // No 'address' declaration
         
         // 7. Parameter count mismatch
-        char[20] studentCode = {'C','S','1','0','0','1'};
+        int studentCode = 5;
         Student s = new Student(studentCode,cs101); // Missing courses parameter
         x = s.validateCourses();
         // 8. Invalid array access
