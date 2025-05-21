@@ -178,7 +178,14 @@ void generate_assignment(const char *dest, const char *src)
         else
         {
             fprintf(asm_file, "    MOV AX, %s\n", src);
-            fprintf(asm_file, "    MOV %s, AL\n", dest);
+            if (strstr(dest, "_"))
+            {
+                fprintf(asm_file, "    MOV %s, AX\n", dest);
+            }
+            else
+            {
+                fprintf(asm_file, "    MOV %s, AL\n", dest);
+            }
         }
     }
     else
@@ -186,7 +193,14 @@ void generate_assignment(const char *dest, const char *src)
         if (is_byte_variable(src))
         {
             fprintf(asm_file, "    MOV AL, %s\n", src);
-            fprintf(asm_file, "    MOV %s, AX\n", dest);
+            if (strstr(dest, "_"))
+            {
+                fprintf(asm_file, "    MOV %s, AL\n", dest);
+            }
+            else
+            {
+                fprintf(asm_file, "    MOV %s, AX\n", dest);
+            }
         }
         else
         {
